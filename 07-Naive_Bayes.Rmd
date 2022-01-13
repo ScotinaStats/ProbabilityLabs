@@ -1,0 +1,308 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Central Limit Theorem"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(mosaic)
+library(tidyverse)
+library(learnr)
+library(janitor)
+library(modeldata)
+library(e1071)
+library(patchwork)
+
+theme_set(theme_minimal() +
+  theme(axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(size = 12, face = "bold"), 
+        axis.text.y = element_text(size = 12, face = "bold")))
+```
+
+
+## Introduction
+
+```{r, eval = FALSE}
+# Needed packages!
+library(mosaic)
+library(tidyverse)
+library(modeldata) # For 'attrition' data
+library(e1071) # For naiveBayes()
+library(janitor) # For fancy frequency tables!
+library(patchwork) # OPTIONAL, for placing plots side-by-side
+```
+
+* * *
+
+🚨This tutorial is heavily influenced by the Naive Bayes chapter on penguin data in [*Bayes Rules!*](https://www.bayesrulesbook.com/) by Alicia A. Johnson, Miles Ott, and Mine Dogucu. If you are interested in studying Bayesian Statistics, I *strongly* recommend this fantastic book!
+
+* * *
+
+###
+
+Recently, we've studied **joint distributions**, **marginal distributions**, and **conditional distributions**, each of which have an associated *probability density function*:
+
+- The *joint PDF* of $X$ and $Y$ is $f(x,y)$. 
+
+- The *marginal PDF* of $X$ is $f(x)$. The *marginal PDF* of $Y$ is $f(y)$. 
+
+- The *conditional PDF of X*, given that $Y=y$, is $$f(x\mid y)=\frac{f(x,y)}{f(y)}$$
+
+The latter definition follows from the definition of *conditional probability*. Using **Bayes' Rule**, we can rewrite the conditional PDF of $X$ given $Y=y$ as: $$f(x\mid y)=\frac{f(y\mid x)f(x)}{f(y)}$$
+
+### The Data
+
+In this lab we'll examine the `attrition` dataset from the `{modeldata}` package:
+
+```{r, prepare-attrition, echo = FALSE}
+data("attrition")
+```
+
+```{r, data, exercise = TRUE, exercise.eval = FALSE}
+attrition
+```
+
+This [dataset](https://rdrr.io/cran/modeldata/man/attrition.html) is from the IBM Watson Analytics Lab and contains 1470 rows. Our goal is to predict the probability that an employee leaves their position, given a set of *feature* characteristics (such as whether or not they work overtime, their age, work/life balance, etc.). 
+
+###
+
+To do so, we'll use **naive Bayes classification**! There are other frequently-used modeling procedures for estimating *binary* outcomes, such as **logistic regression**. Naive Bayes has a few advantages:
+
+- It can classify a categorical response variable, $Y$, that has *more than two levels*. 
+
+- It requires an understanding of *Bayes' Rule*, and not much beyond that. 
+
+But...why "naive?" Great question! We'll answer that question along the way. 
+
+### Exploratory Analysis
+
+Our goal is to predict whether or not an employee will leave their position (i.e., `Attrition == "Yes"`) at a large company. First, let's see the proportional breakdown of the `Attrition` variable in our data:
+
+```{r, attrition_tabyl, exercise = TRUE, exercise.eval = FALSE}
+attrition %>%
+  tabyl(Attrition)
+```
+
+Among the employees in this dataset, 237/1470 (16.1%) left their position. We'll assume that this proportional breakdown is representative of most large companies in the U.S. In other words, this will serve as our **prior distribution**; our *a priori assumption* is that a randomly selected employee is more likely to keep their current position. 
+
+###
+
+Let's use our naive Bayes classifier on a single employee: *Moose*, who has the following traits:
+
+- is 21 years old
+
+- typically works overtime
+
+- works 22 miles away from home
+
+But before we find out whether Moose is more likely to leave her current position, we need to build the classifier!
+
+## One Quantitative Predictor
+
+For now, let's *only* consider the fact that Moose is 42 years old. 
+
+```{r plot1, exercise = TRUE, exercise.eval = FALSE}
+ggplot(data = attrition, aes(x = Age, fill = Attrition)) + 
+  geom_density(alpha = 0.4) + 
+  geom_vline(xintercept = 21, linetype = "dashed", size = 1.5)
+```
+
+###
+
+From the density plot, older workers tend to be *slightly* more likely to attrit; the peak of the `Attrition == "No` density is around 35 years old, whereas the peak of the `Attrition == "Yes"` density is around 30 years old. Thus based on our *data*, Moose is more likely to attrit. However, we need to also weigh this against the *a priori* fact that **employees are more likely to remain at their current position**. 
+
+###
+
+We can use this information, along with Bayes' Rule, to make a naive classification of Moose's attrition status. But first, some notation:
+
+- Let $Y=$ whether or not the employee remains at their current position. 
+    - $Y=1$ if `Attrition == "Yes"`
+    - $Y=0$ if `Attrition == "No"`
+    
+- Let $X_{1}=$ age (in years).
+
+We have the **prior probability** of attrition, $f(y)$, from the frequency table in the previous section. In other words, $$f(y=1)=0.161\quad\text{and}\quad f(y=0)=0.839.$$ We want to find $f(y\mid x_{1})$, or the **posterior probability** of attrition, *given an employee's age*. 
+
+###
+
+Using Bayes' Rule, we have $$f(y\mid x_{1})=\frac{f(x_{1}\mid y)f(y)}{f(x_{1})}=\frac{f(x_{1}\mid y)f(y)}{f(x_{1}\mid y=0)f(y=0)+f(x_{1}\mid y=1)f(y=1)},$$ where we expanded $f(x_{1})$ using the **Law of Total Probability**. 
+
+###
+
+Let's focus on $f(x_{1}\mid y)$, also called the **likelihood function**. To calculate this, we need to first assume a *model* for the $X_{1}$ (age) variable, and one of the "naive" assumptions that a naive Bayes classifer makes is that each quantitative predictor is **continuous** and **conditionally Normal**:
+\begin{align*}
+&X_{1}\mid \{Y = 1\} \sim Normal(\mu_{1},\sigma_{1})\\
+&X_{1}\mid \{Y = 0\} \sim Normal(\mu_{0},\sigma_{0})
+\end{align*}
+In other words, within each subgroup of attrition status (those who leave their position vs. those who stay), the distribution of age is Normal with some (possibly different) mean and standard deviation. 
+
+###
+
+We'll *tune* these Normal models using the sample means and standard deviations from our data:
+
+```{r, age_stats, exercise = TRUE, exercise.eval = FALSE}
+favstats(Age ~ Attrition, data = attrition) %>%
+  select(Attrition, mean, sd)
+```
+
+So, our conditional distributions for `Age` become:
+\begin{align*}
+&X_{1}\mid \{Y = 1\} \sim Normal(33.6,8.9)\\
+&X_{1}\mid \{Y = 0\} \sim Normal(37.6,9.7)
+\end{align*}
+
+###
+
+Let's see how well these models fit the observed data:
+
+```{r, plot2, exercise = TRUE, exercise.eval = FALSE}
+p1 = ggplot(data = attrition, aes(x = Age, color = Attrition)) + 
+  geom_density(alpha = 0.4) + 
+  labs(title = "Observed Age Distributions")
+
+p2 = ggplot(data = attrition, aes(x = Age, color = Attrition)) + 
+  stat_function(fun = dnorm, args = list(mean = 33.6, sd = 8.9), 
+                aes(color = "Yes")) +
+  stat_function(fun = dnorm, args = list(mean = 37.6, sd = 9.7),
+                aes(color = "No")) + 
+  labs(title = "Assumed Age Distributions")
+
+p1 + p2
+```
+
+This will not *always* be the case, but these conditional Normal models actually look like pretty good fits to the data! We can use the conditional Normality assumption, along with the tuned mean and standard deviation, to calculate the likelihood of observing...
+
+- a 21 year old, given that they remain at their current position ($Y=0$)
+
+- a 21 year old, given that they left their current position ($Y=1$)
+
+To do so, we just evaluate each respective Normal density at $x_{1}=42$. For example, 
+
+- $f(x_{1}=21\mid y=0)=\frac{1}{8.9\sqrt{2\pi}}\exp\left\{\frac{-(21 - 37.6)^2}{2(8.9^{2})}\right\}=0.0079$
+
+###
+
+Or...we could just use `dnorm(...)`:
+
+```{r, dnorm1, exercise = TRUE, exercise.eval = FALSE}
+# f(x1 = 42 | y = 0)
+dnorm(21, mean = 37.56123, sd = 8.88836)
+
+# f(x1 = 42 | y = 1)
+dnorm(21, mean = 33.60759, sd = 9.68935)
+```
+
+###
+
+Now we have everything we need to classify Moose! First, 
+\begin{align*}
+f(x_{1}=21)&=f(x_{1}=21\mid y=0)f(y=0)+f(x_{1}=21\mid y=1)f(y=1)\\
+&=0.007910772\times 0.8387755 + 0.01765916\times 0.1612245\\
+&=0.009482451
+\end{align*}
+This represents the **marginal density** of observing a person who is 21 years old, weighted by the **prior probabilities** of each `Attrition` status. As you can see, it's weighted *heavily* by the fact that most people in the data have remained at their current positions!
+
+###
+
+Therefore, 
+$$
+f(y = 1\mid x_{1}=21)=\frac{0.01765916\times 0.1612245}{0.009482451}=0.3
+$$
+and
+$$
+f(y = 0\mid x_{1}=42)=\frac{0.007910772\times 0.8387755}{0.009482451}=0.7
+$$
+
+Our *naive Bayes classification*, based on the **prior information** of attrition frequency and Moose's age alone, is that Moose *remained* at her current position, as this has the highest **posterior probability**. While younger age is generally associated with a higher attrition rate, the *substantially higher* prior probability of `Attrition == "No"` pushed the final classification in that direction. 
+
+## Naive Bayes in R
+
+Luckily, we don't *have* to perform naive Bayes by-hand - we can use R! Though the by-hand calculations can be useful to see what pieces are involved in this calculation, they could get quite tedious if we had to classify a nonbinary categorical response variable with many levels.
+
+To perform naive Bayes classification in R, we'll use the `naiveBayes()` function from the `{e1071}` package. If you've used the `lm()` function to build a linear model in R, this will look similar. 
+
+Let's apply this model to our favorite employee, Moose!
+
+```{r, naive_model_1, exercise = TRUE, exercise.eval = FALSE}
+naive_model_1 = naiveBayes(Attrition ~ Age, data = attrition)
+
+moose = data.frame(Age = 21)
+predict(naive_model_1, newdata = moose, type = "raw")
+
+predict(naive_model_1, newdata = moose)
+```
+
+###
+
+A few notes:
+
+- We had to save `moose` as a *data frame* object (even though it's a single `Age` observation) in order to use it in `predict()`. 
+
+- In `predict()` we feed the `newdata` into the `naive_model_1` object that we fit in the previous step. The `type = "raw"` option returns **posterior probabilities**, whereas omitting the `type` argument returns a *classification* (represented by a level of the `Attrition` variable). 
+
+## Multiple Predictors
+
+We have the option to incorporate *multiple predictors* into our classification model! Suppose in addition to `Age`, we incorporate `MonthlyIncome` as a second predictor ($X_{2}$). In R, it is fairly straightforward to build this model.
+
+It turns out that Moose was making \$2500 per month - let's see how this model would classify Moose's attrition status:
+
+```{r, naive_model_2, exercise = TRUE, exercise.eval = FALSE}
+naive_model_2 = naiveBayes(Attrition ~ Age + MonthlyIncome, data = attrition)
+
+moose = data.frame(Age = 21, MonthlyIncome = 2500)
+predict(naive_model_2, newdata = moose, type = "raw")
+
+predict(naive_model_2, newdata = moose)
+```
+
+After incorporating Moose's monthly income of \$2500, her predicted attrition probability is higher by ~11% - though she would still be *classified* as having remained at her current position (`Attrition == "No")`.
+
+### Behind the Scenes
+
+How is Bayes' Rule working in determining a classification that uses *two predictors*? Using Bayes' Rule, we have $$f(y\mid x_{1},x_{2})=\frac{f(x_{1},x_{2}\mid y)f(y)}{f(x_{1},x_{2})}.$$
+
+A *second* big assumption that the naive Bayes classifier makes is that $X_{1}$ and $X_{2}$ are **conditionally independent, given Y**: $$f(x_{1},x_{2}\mid y)=f(x_{1}\mid y)f(x_{2}\mid y)$$ In other words, *within each level of* `Attrition`, age and monthly income are **independent**. This sounds...*implausible*... 
+
+###
+
+We would also assume that `MonthlyIncome` is *conditionally Normal*:
+
+\begin{align*}
+&X_{2}\mid \{Y = 1\} \sim Normal(\mu_{1},\sigma_{1})\\
+&X_{2}\mid \{Y = 0\} \sim Normal(\mu_{0},\sigma_{0})
+\end{align*}
+
+But, let's see whether the data *actually* appear Normally distributed. 
+
+```{r, plot3, exercise = TRUE, exercise.eval = FALSE}
+ggplot(data = attrition, aes(x = MonthlyIncome, fill = Attrition)) + 
+  geom_density(alpha = 0.4) + 
+  labs(x = "Monthly Income") +
+  scale_x_continuous(labels = scales::dollar)
+```
+
+So, in addition to the conditional independence assumption, the conditional Normality assumption might not be met for `MonthlyIncome`. 
+
+Regardless, it looks like our example employee, Moose, would be *more likely* to attrit than some other employees (particularly older/higher earners), but she does not have a predicted probability $>0.5$ that would be needed to classify her in that direction. 
+
+## Summary
+
+The naive Bayes classifier is based on Bayes' Rule, and allows us to estimate a **posterior probability** that a new observation with a vector of $p$ observed predictors ($X_{1},X_{2},\dots,X_{p}$) belongs to one level of categorical (possibly *multinomial*) $Y$:
+
+$$f(y\mid x_{1},x_{2},\dots,x_{p})=\frac{f(x_{1},x_{2},\dots,x_{p}\mid y)f(y)}{f(x_{1},x_{2},\dots,x_{p})}$$
+
+Naive Bayes gets its name because of the following *naive* assumptions that it makes about $f(x_{1},x_{2},\dots,x_{p}\mid y)$:
+
+1. Each of the predictors $X_{i}$ are **conditionally independent**, given $Y$: $$f(x_{1},x_{2},\dots,x_{p}\mid y)=f(x_{1}\mid y)f(x_{2}\mid y)\cdots f(x_{p}\mid y)$$
+
+2. For **quantitative predictors**, the conditional distribution $X_{i}\mid Y=y$ is **Normal**: $$X_{i}\mid \{Y = y\} \sim Normal(\mu_{iy},\sigma_{iy})$$
+
+
+### Sources
+
+- [*Bayes Rules! An Introduction to Bayesian Modeling with R*](https://www.bayesrulesbook.com/) by Alicia A. Johnson, Miles Ott, and Mine Dogucu: I *strongly* recommend this book if you would like to dive deeper into Bayesian statistics. 

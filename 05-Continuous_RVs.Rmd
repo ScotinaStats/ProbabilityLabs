@@ -1,0 +1,379 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Continuous Random Variables"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(mosaic)
+library(tidyverse)
+
+theme_set(theme_minimal() +
+  theme(axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(size = 12, face = "bold"), 
+        axis.text.y = element_text(size = 12, face = "bold")))
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction
+
+In a previous lab, we were introduced to the **Fantastic Four Functions** for discrete probability distributions, built-in R functions that allow us to work with named probability distributions. Let's briefly work through these functions with *continuous* probability distributions!
+
+- `r` -- random number generator; essentially a more specific version of `sample()`
+
+- `d` -- the probability *density* function (PDF) for **continuous** RVs
+    - Calculates probability densities of the form $f(y)$. 
+
+- `p` -- the cumulative distribution function (CDF)
+    - Calculates probabilities of the form $F(y)=P(Y\leq y)$. 
+    
+- `q` -- the **quantile** function
+    - Computes $y$ such that $P(Y\leq y)=q$.
+    
+<center>
+
+![](https://media.giphy.com/media/eHp8WR0EOmM1i/giphy.gif)
+
+</center>
+
+## Uniform Distribution
+
+The probability **density** function (PDF) for $Y\sim Uniform(a,b)$ is given by $$f(y)=\frac{1}{b-a},\quad a\leq y\leq b.$$
+
+When calculating probabilities for a *named* **continuous** probability distribution, we will almost *exclusively* use the `p...()` function for the cumulative distribution function. Why? Because $f(y)$ is a **probability density**, not a **probability**!
+
+For example, suppose $Y\sim Uniform(0, 0.5)$, and $$f(y)=\frac{1}{0.5}=2,\quad 0\leq y\leq 0.5.$$ This means that the *density* will be equal to **2** for all $y$ such that $0\leq y\leq 0.5$. This would make $f(y)>1$, so it *can't* be a probability! In R, we can find $f(0.25)$ with `dunif()`:
+
+```{r, unif1, exercise = TRUE, exercise.eval = FALSE}
+dunif(0.25, min = 0, max = 0.5)
+```
+
+###
+
+Because $Y$ is **continuous**, the probability of *any single value* of $Y$ is zero. Rather, we are interested in the probability that $Y$ falls in a particular *interval*, $$P(a\leq Y\leq b)=\int_{a}^{b}f(y)\,dy=P(Y\leq b)-P(Y\leq a).$$ If $Y\sim Uniform(0, 0.5)$, then $P(Y=0.25)=0$. But we *could* find $P(0.2\leq Y\leq 0.3)$, using *integration* or `punif()`:
+
+```{r, unif2, exercise = TRUE, exercise.eval = FALSE}
+punif(0.3, 0, 0.5) - punif(0.2, 0, 0.5)
+```
+
+In Figure 1 below, we can see what this probability corresponds to the area under the "curve", $f(y)=2$. Because $f(y)$ is just a straight line, $P(0.2\leq Y\leq 0.3)$ is just the area of a rectangle with $width = 0.1$ and $height = 2$. 
+
+```{r, echo = FALSE, fig.align = "center", fig.cap = "Figure 1: P(0.2 ≤ Y ≤ 0.3), where Y ~ Unif(0,0.5)"}
+ggplot(data = data.frame(x = c(-0.05, 0.55)), aes(x)) +
+  stat_function(fun = dunif, 
+                args = list(min = 0, max = 0.5)) + 
+  stat_function(fun = dunif, 
+                args = list(min = 0, max = 0.5),
+                xlim = c(0.2, 0.3),
+                geom = "area", 
+                fill = "dodgerblue") +
+  labs(x = "y", y = "f(y)")
+```
+
+###
+
+Other probabilities won't be as simple to visualize as the area of a shape - let's look at one now!
+
+## Normal Distribution
+
+The Normal distribution is perhaps the most widely-used *named* probability distribution, and has applications in many statistical inference and modeling procedures. The probability **density** function for $Y\sim Normal(\mu,\sigma)$ is given by $$f(y)=\frac{1}{\sqrt{2\pi}\sigma}e^{-(y-\mu)^{2}/2\sigma^{2}},\quad -\infty\leq y\leq \infty,$$ where $E(Y)=\mu$ and $Var(Y)=\sigma^{2}$. 
+
+Let's work through a couple of exercises that ask you to calculate some Normal probabilities!
+
+### Exercise 1
+
+Suppose we are modeling automobile speeds, $Y$, on a quiet suburban street with a $Normal(25, 2)$ distribution, where $$f(y)=\frac{1}{2\sqrt{2\pi}}e^{-(y-25)^{2}/8},\quad -\infty<y<\infty.$$ Find $P(25\leq Y\leq 30)$ using the appropriate *Fantastic Four Function*. 
+
+```{r, ex1, exercise = TRUE}
+
+```
+
+```{r, ex1-solution}
+pnorm(30, 25, 2) - pnorm(25, 25, 2)
+```
+
+
+* * *
+
+```{r, echo = FALSE, fig.align = "center", fig.cap = "Figure 2: P(25 ≤ Y ≤ 30), where Y ~ N(25, 2)"}
+ggplot(data = data.frame(x = c(15, 35)), aes(x)) +
+  stat_function(fun = dnorm, 
+                args = list(mean = 25, sd = 2)) + 
+  stat_function(fun = dnorm, 
+                args = list(mean = 25, sd = 2),
+                xlim = c(25, 30),
+                geom = "area", 
+                fill = "hotpink") +
+  labs(x = "y", y = "f(y)")
+```
+
+### Exercise 2
+
+While the support of $Y$ is *technically* $-\infty<Y<\infty$, cars can't have negative speeds! Well maybe Tesla has something planned, but there isn't anything out right now...
+
+A Normal model is probably still okay in this context, though, because the standard deviation is so small. Calculate $P(Y\leq 1)$ to see how *rare* it would be to find a car traveling at slower than 1 mph in this distribution. 
+
+```{r, ex2, exercise = TRUE}
+
+```
+
+```{r, ex2-solution}
+pnorm(1, 25, 2)
+```
+
+###
+
+The *Fantastic Four Functions* are great (especially the `p...()` function, since that's all we've looked at so far today). But what if we were working with an *unnamed* continuous distribution? R doesn't have built-in **functions** for those, but luckily we can write our own!
+
+<center>
+
+![](https://media.giphy.com/media/9PqOegBqgBnMHvERV3/giphy.gif)
+
+</center>
+
+## Functions in R
+
+Writing **functions** has many benefits that extend beyond a course in Probability! They are an incredibly useful skill to learn for any data scientist, and they allow us to *automate* many things that we would otherwise need to copy/paste. Plus, you can name your functions, and that is *always* fun. 
+
+In class, we worked with a continuous random variable, $Y$, with density function $$f(y)=\begin{cases}(3/2)y^2+y,&0\leq y\leq 1,\\0,&\text{elsewhere}\end{cases}$$
+
+Let's write this density as a **function** in R so we can visualize it, sample from it, and calculate probabilities with it. 
+
+```{r, prepare-function_y}
+f_y = function(y){
+  (3/2)*y^2 + y
+}
+```
+
+```{r, f_y, exercise = TRUE, exercise.eval = FALSE}
+f_y = function(y){
+  (3/2)*y^2 + y
+}
+f_y
+```
+
+###
+
+This function has three important elements:
+
+1. The **name**: I called this `f_y` because it's, well... $f(y)$, and I can't use parentheses in the name of a function.
+
+2. The **inputs**: Because we're only working with *univariate* distributions right now, there will only be a single input (or *argument*), `y`. But when we work with *joint probability distributions*, we'll begin writing functions that take multiple inputs. 
+
+3. The **body**: This is the code that allows the function to run and give the output that you expect. I'd recommend trying out the body with a few specific values of `y` before wrapping it into a function!
+
+###
+
+Let's try our new function with a couple different values of $y$:
+
+```{r, func1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-function_y"}
+f_y(0.5)
+```
+
+```{r, func2, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-function_y"}
+f_y(2)
+```
+
+### Exercise 3
+
+Write a function, `f_x`, for the PDF of a variable $X$ such that $X\sim Normal(25, 2)$. Verify that $f_x(20)$ and `dnorm(20, 25, 2)` return the same result.
+
+[**Note**:  Use the object `pi` in R in place of $\pi$ in your function.]
+
+```{r, ex3, exercise = TRUE}
+
+```
+
+```{r, ex3-solution}
+f_x = function(x){
+  1/(2*sqrt(2*pi))*exp(-(x - 25)^2/8)
+}
+
+f_x(20)
+
+dnorm(20, 25, 2)
+```
+
+### Sampling Continuous RVs
+
+Unlike random variables that follow named probability distributions, we do not have built-in R functions that (i) sample from, and (ii) calculate analytical probabilities of random variables like our $Y$ that has density function $$f(y)=(3/2)y^2+y,\quad0\leq y\leq 1.$$ That's okay, because we can use the function that we defined in R to simulate a *random sample* from a distribution with density function $f(y)$. 
+
+First, below is a graph of the PDF from which we will sample. Don't worry much about the code for this part! Just know that we evaluate `f_y(...)` for values of `y` within the **support** of $Y$ ($0\leq y\leq 1$).
+
+```{r, f_y_plot, exercise = TRUE, exercise.eval = FALSE}
+y = seq(0, 1, by = 0.01)
+gf_line(f_y(y) ~ y, size = 2) + 
+  labs(y = "f(y)", title = "f(y) = (3/2)y^2 + y") 
+```
+
+###
+
+We can sample from this distribution using the following steps:
+
+```{r, prepare-cont_sim}
+set.seed(338)
+y_values = runif(50000, 0, 1)
+y_probs = f_y(y_values)
+y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs)
+```
+
+
+1. Take a *large* random sample from the possible values of $Y$ (i.e., its **support**). Because each value in the interval $[0,1]$ is equally-likely, we can sample this from a $Uniform(0,1)$ distribution:
+    ```{r, y_values, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-cont_sim"}
+    set.seed(338) # Use for reproducibility!
+    y_values = runif(50000, 0, 1)
+    head(y_values)
+    ```
+    
+2. Calculate the *likelihood* of each $y$ value by applying our function, `f_y` to the vector `y_values`. Note that this **does not** give the *probability* of each $y$; rather, the *probability density* of each $y$ over the interval $[0,1]$. 
+    ```{r, y_probs, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-cont_sim"}
+    y_probs = f_y(y_values)
+    head(y_probs)
+    ```
+    
+3. Sample around 10,000 values from `y_values` using `sample(...)`, with `prob` equal to the `y_probs` vector that we computed in Step 2. While `y_probs` are *not* probabilities, `sample()` will rescale these values so that they sum to 1:
+    ```{r, y_sample, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-cont_sim"}
+    y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs)
+    head(y_sample)
+    ```
+
+###
+
+Now, let's visualize the distribution `y_sample`:
+
+```{r, continuous_sim, exercise = TRUE, exercise.eval = FALSE}
+y_values = runif(50000, 0, 1) # Step 1
+y_probs = f_y(y_values) # Step 2
+y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs) # Step 3
+  
+gf_histogram( ~ y_sample) 
+```
+
+How well does this match the analytical PDF from the previous graph?
+
+### Exercise 4
+
+Using the *simulated* `y_sample`, estimate $E(Y)$ and $P(0.5\leq Y\leq0.75)$. 
+
+```{r, ex4, exercise = TRUE}
+
+```
+
+```{r, ex4-solution}
+y_values = runif(50000, 0, 1) # Step 1
+y_probs = f_y(y_values) # Step 2
+y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs) # Step 3
+
+mean(y_sample)
+mean((y_sample <= 0.75) & (y_sample >= 0.5))
+```
+
+```{r, echo = FALSE, fig.align = "center", fig.cap = "Figure 3: P(0.5 ≤ Y ≤ 0.75) for Exercise 4"}
+f_y = function(y){
+  (3/2)*y^2 + y
+}
+ggplot(data = data.frame(x = c(0, 1)), aes(x)) +
+  stat_function(fun = f_y) + 
+  stat_function(fun = f_y, 
+                xlim = c(0.5, 0.75),
+                geom = "area", 
+                fill = "chartreuse") +
+  labs(x = "y", y = "f(y)")
+```
+
+* * * 
+
+### Exercise 5
+
+In class we looked at a continuous random variable $Y$ with density function $$f(y)=\begin{cases}y/2,&0<y<2,\\0,&\text{elsewhere}.\end{cases}$$ Using the steps described above, simulate a sample from this distribution to estimate $E(Y)$ and $P(1\leq Y\leq 2)$. 
+
+```{r, ex5, exercise = TRUE}
+
+```
+
+```{r, ex5-solution}
+f_y = function(y){
+  y/2
+}
+y_values = runif(50000, 0, 2) # Step 1
+y_probs = f_y(y_values) # Step 2
+y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs) # Step 3
+  
+mean(y_sample)
+mean((y_sample >= 1) & (y_sample <= 2))
+```
+
+### Exercise 6 
+
+Repeat the set-up to Exercise 5, but suppose instead a random variable $X\sim Exponential(2)$. That is, $$f(x)=\frac{1}{2}e^{-x/2},\qquad x>0.$$ Estimate $P(X \leq 5)$ and compare this to the value found with `pexp(5, rate = 1/2)`.
+
+```{r, ex6, exercise = TRUE}
+
+```
+
+```{r, ex6-solution}
+f_x = function(x){
+  (1/2)*exp(-x/2)
+}
+x_values = runif(50000, 0, 10) # Step 1
+x_probs = f_x(x_values) # Step 2
+x_sample = sample(x_values, size = 10000, replace = TRUE, prob = x_probs) # Step 3
+  
+mean(x_sample <= 5)
+
+pexp(5, rate = 1/2)
+```
+
+## Numerical Integration
+
+The base R function, `integrate()` helps us compute integrals *numerically*. For example, the standard normal PDF for $Y\sim Normal(0,1)$ is given by $$f(y)=\frac{1}{\sqrt{2\pi}}e^{-y^{2}/2},\quad -\infty<y<\infty.$$
+
+Let's save this as a function in R, and then use `integrate()` to approximate $\int_{-\infty}^{\infty}f(y)\,dy$ (which we know should equal **1** since this is a valid PDF):
+
+```{r, int1, exercise = TRUE, exercise.eval = FALSE}
+f_norm = function(y){
+  (1/sqrt(2*pi))*exp(-y^2/2)
+}
+
+integrate(f_norm, lower = -Inf, upper = Inf)
+```
+
+###
+
+Similarly, let's evaluate $P(1\leq Y\leq 2)=\int_{1}^{2}f(y)\, dy$:
+
+```{r, int2, exercise = TRUE, exercise.eval = FALSE}
+integrate(f_norm, lower = 1, upper = 2)
+```
+
+Comparing this to $P(Y\leq 2)-P(Y\leq 1)$ via `pnorm()`, we have...
+
+```{r, pnorm, exercise = TRUE, exercise.eval = FALSE}
+pnorm(2, mean = 0, sd = 1) - pnorm(1, mean = 0, sd = 1)
+```
+
+That's pretty spot-on. Using `integrate()`, you can check the work of any integral calculations you might do by hand!
+
+One more for the road...
+
+### Exercise 7
+
+Use `integrate()` to evaluate $P(0.5 \leq Y\leq 0.75)$, where $Y$ has density function $$f(y)=(3/2)y^2+y,\quad0\leq y\leq 1.$$ 
+
+```{r, ex7, exercise = TRUE}
+
+```
+
+```{r, ex7-solution}
+f_y = function(y){
+  (3/2)*y^2 + y
+}
+integrate(f_y, lower = 0.5, upper = 0.75)
+```

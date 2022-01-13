@@ -1,0 +1,390 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Discrete Random Variables"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(mosaic)
+library(tidyverse)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction
+
+The goals of today's lab are to:
+
+- simulate data from several of the named probability distributions covered in class.
+
+- calculate probabilities involving discrete random variables using R's built-in functions for the *cumulative distribution function* (CDF) and the *probability mass function* (PMF).
+
+- visualize probability distributions using one of R's many incredible data visualization packages.
+
+<center>
+
+![](https://pbs.twimg.com/media/DAsjfPjXkAIBoET.jpg){width=50%}
+
+</center>
+
+###
+
+### Built-in R Functions
+
+There are ways to simulate data from some of the discrete probability distributions we've discussed using `sample()`. We could also write a **function** based on the PMF of a distribution and sample data using that function (more on this in a future lab!). 
+
+Because R is a *statistical computing program* first and foremost, it actually contains built-in functions for generating data,  computing probabilities and quantiles, and computing cumulative distributions for each of the *named* discrete probability distributions we've discussed. Each type of random variable can be evaluated in one of several ways by the **Fantastic Four Functions**:
+
+- `r` -- random number generator; essentially a more specific version of `sample()`
+
+- `d` -- the probability mass function (PMF) for **discrete** RVs
+    - Calculates probabilities of the form $P(Y=y)$. 
+
+- `p` -- the cumulative distribution function (CDF)
+    - Calculates probabilities of the form $P(Y\leq y)$. 
+    
+- `q` -- the **quantile** function
+    - Computes $y$ such that $P(Y\leq y)=q$.
+
+Each of these letters is followed by a named probability distribution; for example, the `r` function has several versions: `rbinom()`, `rgeom()`, `rpois()`, etc., where each of these functions has different arguments depending on the parameters in the respective probability distribution. 
+
+<center>
+
+![](https://media.giphy.com/media/eHp8WR0EOmM1i/giphy.gif)
+
+</center>
+
+## Binomial Distribution
+
+Suppose $Y\sim Binomial(n,p)$, where $n$ is the number of observations and $p$ is the success probability. Then the Fantastic Four Functions look like this:
+
+- `rbinom(N, n, p)` -- generates a **vector** of $N$ random numbers from the $Binomial(n,p)$ distribution
+
+- `dbinom(y, n, p)` -- calculates $P(Y=y)$ for $Y\sim Binomial(n,p)$
+
+- `pbinom(y, n, p)` -- calculates $P(Y\leq y)$ for $Y\sim Binomial(n,p)$
+
+- `qbinom(q, n, p)` -- computes $y$ such that $P(Y\leq y)=q$ for $Y\sim Binomial(n,p)$, where $0\leq q\leq 1$. 
+
+###
+
+### Dataviz
+
+Recall from class the *widely-known fact* that 70% of customers at Piéchart Emporium qualify for a discount. Assume that we observe 20 customers walk Piéchart Emporium during one afternoon (they run out of supplies after 20 customers), and that each customer is *independent* and not likely to influence the discount chances for another customer. 
+
+- We can treat the **number of customers who qualify for a discount**, $Y$, as a $Binomial(20,p=0.7)$ random variable. 
+
+Using `rbinom()`, let's generate 100 observations from the $Binomial(20,p=0.7)$. This could represent 100 different days where Piéchart Emporium was running the discount, for 20 customers each day:
+
+```{r, prepare-y_binom}
+set.seed(338) # Use for reproducibility
+Y = rbinom(100, 20, 0.7)
+```
+```{r, y_binom, exercise = TRUE, exercise.eval = FALSE}
+set.seed(338) # Use for reproducibility
+Y = rbinom(100, 20, 0.7)
+Y
+```
+
+We can visualize this set of observations with a **histogram**, using either `gf_histogram()` from the `mosaic` package, or by using the `ggplot2` framework:
+
+```{r, binom-graph, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-y_binom"}
+library(mosaic)
+library(tidyverse)
+
+# mosaic
+gf_histogram( ~ Y) + 
+  labs(x = "y")
+```
+
+### Exercise 1 
+
+If $Y\sim Binomial(20, 0.7)$, then what is $E(Y)$? Find $E(Y)$ by hand, but also use R to *estimate* $E(Y)$ and $E(Y^2)$. 
+
+```{r, ex1, exercise = TRUE}
+
+```
+
+```{r, ex1-solution}
+Y = rbinom(1000, 20, 0.7)
+mean(Y)
+mean(Y^2)
+```
+
+### Probability Function
+
+**Probability Mass Function (PMF)**
+
+If $Y\sim Binomial(n,p)$, then it's probability function is given by $$P(Y=y)=\binom{n}{y}p^{y}(1-p)^{n-y}\ y = 0,1,2,\dots,n.$$ While we *could* use this formula to find any probabilities associated with binomial random variables, this can get to be quite cumbersome. 
+
+### Exercise 2 
+
+If $Y\sim Binomial(20, 0.7)$ represents the distribution of customers who qualify for the Piéchart Emporium discount out of groups of 20, find the probability that *more than 10*, but *no more than 14* customers qualify for the discount (in other words, $P(10<Y\leq 14)$. Use the PMF directly!
+
+[**Hint**: We can evaluate binomial coefficients in R with `choose(n, y)`.]
+
+```{r, ex2, exercise = TRUE}
+
+```
+
+```{r, ex2-solution}
+choose(20, 11)*0.7^11*(1-0.7)^(20-11) + 
+  choose(20, 12)*0.7^12*(1-0.7)^(20-12) +
+  choose(20, 13)*0.7^13*(1-0.7)^(20-13) +
+  choose(20, 14)*0.7^14*(1-0.7)^(20-14) 
+```
+
+###
+
+While I'm sure it was a *blast* to calculate that out by hand, we can use `dbinom()` to streamline this calculation quite a bit! 
+
+Because $P(10<Y\leq 14)$ actually represents the probability of a **union of mutually exclusive events** (e.g., we can't simultaneously observe exactly 11 and 12 people qualify for the discount), we can simply add up the individual probabilities:
+
+```{r, dbinom1, exercise = TRUE, exercise.eval = FALSE}
+dbinom(11, 20, 0.7) + dbinom(12, 20, 0.7) + dbinom(13, 20, 0.7) + dbinom(14, 20, 0.7)
+```
+
+Equivalently, we can apply the vector `11:14` to a single `dbinom()`, and add up the resulting vector:
+
+```{r, dbinom2, exercise = TRUE, exercise.eval = FALSE}
+dbinom(11:14, 20, 0.7)
+
+sum(dbinom(11:14, 20, 0.7))
+```
+
+We could also *simulate* this using the `Y` vector that we created earlier:
+
+```{r, dbinom3, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-y_binom"}
+mean(Y %in% 11:14)
+```
+
+
+### Exercise 3
+
+Piéchart Emporium upper management gets angry if more than 17 customers qualify for the discount on a given day. Find the probability that more than 17 customers qualify for the discount.
+
+```{r, ex3, exercise = TRUE}
+
+```
+
+```{r, ex3-solution}
+dbinom(18, 20, 0.7) + dbinom(19, 20, 0.7) + dbinom(20, 20, 0.7)
+
+#OR
+
+1 - pbinom(17, 20, 0.7)
+```
+
+###
+
+If $P(Y=11)=0.0654$, we can work *backwards* with `qbinom()` to find the value of $y$:
+
+```{r, qbinom, exercise = TRUE, exercise.eval = FALSE}
+qbinom(0.0654, 20, 0.7)
+```
+
+###
+
+**Cumulative Distribution Function (CDF)**
+
+In the previous problem, we had to calculate $P(Y> 17)$ to find the probability that upper management gets angry. Note that $$P(Y>17)=1-P(Y\leq 17).$$ While it could get tedious to use `dbinom()` over and over to calculate $P(Y\leq 17)$, we could also use `pbinom()` because $P(Y\leq y)$ is the **cumulative distribution function** (CDF).
+
+```{r, pbinom1, exercise = TRUE, exercise.eval = FALSE}
+pbinom(17, 20, 0.7) # P(Y <= y)
+
+1 - pbinom(17, 20, 0.7) # P(Y > y)
+```
+
+### Exercise 4
+
+The *Newton-Pepys Problem* from class actually involves the binomial distribution - we are counting the total number of 6s out of 6 (or 12, or 18, etc.) dice tosses! Let $Y$ denote the total number of 6s out of 12 dice rolls. Using `dbinom()` and/or `pbinom()`, find the probability of rolling at least two 6s. 
+
+```{r, ex4, exercise = TRUE}
+
+```
+
+```{r, ex4-solution}
+1 - pbinom(1, 12, 1/6)
+```
+
+## Geometric Distribution
+
+Suppose $Y\sim Geometric(p)$, where $p$ is the success probability. Then the Fantastic Four Functions look like this:
+
+- `rgeom(N, p)` -- generates a **vector** of $N$ random numbers from the $Geometric(p)$ distribution
+
+- `dgeom(y, p)` -- calculates $P(Y=y)$ for $Y\sim Geometric(p)$
+
+- `pgeom(y, p)` -- calculates $P(Y\leq y)$ for $Y\sim Geometric(p)$
+
+- `qgeom(q, p)` -- computes $y$ such that $P(Y\leq y)=q$ for $Y\sim Geometric(p)$, where $0\leq q\leq 1$. 
+
+The geometric distribution is related to the binomial distribution in that they each involve a sequence of independent Bernoulli trials with success probability $p$. The difference is that the geometric distribution models the **trial on which the first success occurs**, rather than the *number of successes out of n trials*.
+
+###
+
+### Dataviz
+
+In a geometric distribution, the main parameter of interest is the success probability, $p$. This is because there is not a fixed number of trials, $n$ - we could keep repeating Bernoulli trials over and over again until we hit that first success, if $p$ is small enough!
+
+Here's our setting for working with the geometric distribution: Boston Celtics star Jaylen Brown had a *free throw percentage* of 76% last season. Assuming that each free throw is independent (a questionable assumption if you believe in the [hot hand](https://www.scientificamerican.com/article/momentum-isnt-magic-vindicating-the-hot-hand-with-the-mathematics-of-streaks/), but let's go with it) with constant probability of *missing a free throw* of 0.24, we can model the distribution of the number of free throw on which Jaylen Brown *first misses*, $Y$, with a $Geometric(0.24)$ distribution.
+
+<center>
+
+![](https://media.giphy.com/media/toj6RwMEzubsWSrBX5/giphy.gif)
+
+</center>
+
+###
+
+Using `rgeom()`, let's simulate a set of 100 different free throw sequences for Jaylen Brown:
+
+```{r, prepare-y_geom}
+set.seed(338)
+Y = rgeom(100, 0.24) + 1
+```
+```{r, rgeom, exercise = TRUE, exercise.eval = FALSE}
+set.seed(338)
+Y = rgeom(100, 0.24) + 1
+Y
+```
+
+> 🚨**NOTE**🚨: The geometric distribution functions in R are used to model the number of trials *until* the first success occurs, not the trial *on which the first success occurs*. To stay consistent with the WMS textbook, we'll add 1 to each element from `rgeom()` to account for this. 
+
+### Exercise 5
+
+Using tools similar to *Exercise 1*, plot the simulated distribution of $Y$. Use `mean()` to find the simulated $E(Y)$.
+
+```{r, ex5, exercise = TRUE}
+
+```
+
+```{r, ex5-solution}
+set.seed(338)
+Y = rgeom(100, 0.24) + 1
+gf_histogram( ~ Y)
+```
+
+### Probabilities
+
+**Probability Mass Function (PMF)**
+
+Similar to `dbinom()`, we can use `dgeom()` to find probabilities of the form $P(Y=y)$. If $Y\sim Geometric(p)$, then $$P(Y=y)=p(1-p)^{y-1}, y=1,2,\dots$$ While we can definitely calculate probabilities by hand with this formula, things can quickly get unwieldy since $y$ isn't capped by a fixed number of trials, $n$. For instance, finding $P(Y=10)$ is fine, but $P(Y >10)$ would take a bit more work.
+
+Because R's geometric distribution functions model the number of trials *until* the first success, our `dgeom()` (and `pgeom()`) syntax will be (this is detailed on page 118 of WMS):
+
+```{r, eval = FALSE}
+dgeom(y-1, p)
+```
+
+### Exercise 6
+
+Find the probability that Jaylen Brown begins the new 2021-2022 NBA season on a hot streak and doesn't miss a free throw until his 10th attempt. That is, find $P(Y=10)$. 
+
+```{r, ex6, exercise = TRUE}
+
+```
+
+```{r, ex6-solution}
+dgeom(10-1, 0.24)
+```
+
+## Poisson Distribution
+
+Suppose $Y\sim Poisson(\lambda)$. Then the Fantastic Four Functions look like this:
+
+- `rpois(N,lambdap)` -- generates a **vector** of $N$ random numbers from the $Poisson(\lambda)$ distribution
+
+- `dpois(y, lambda)` -- calculates $P(Y=y)$ for $Y\sim Poisson(\lambda)$
+
+- `ppois(y, lambda)` -- calculates $P(Y\leq y)$ for $Y\sim Poisson(\lambda))$
+
+- `qpois(q, lambda)` -- computes $y$ such that $P(Y\leq y)=q$ for $Y\sim Poisson(\lambda)$, where $0\leq q\leq 1$. 
+
+The PMF for the $Poisson(\lambda)$ distribution is given by $$P(Y=y)=\frac{e^{-\lambda}\lambda^{y}}{y!}.$$ In R...
+
+- $e^{-\lambda}$ can be found with `exp(lambda)` (replace `lambda` with a number).
+
+- $y!$ can be found with `factorial(y)`.
+
+###
+
+Let's work through a few exercises that involve the Poisson distribution and the *Fantastic Four Functions*, under the following setting:
+
+> The Piéchart Emporium call center is a fairly lively place. Apparently, people aren't thrilled that only 20 customers can visit the store each day! Based on historical records, the Piéchart Emporium call center averages two calls per minute. 
+
+> We'll use the Poisson distribution to model the number of calls per minute ($Y$). That is, let $Y\sim Poisson(\lambda = 2)$. 
+
+Make use of the help pages if you get stuck! `?rpois`, `?ppois`, `?dpois`
+
+### Exercise 7
+
+Simulate 10,000 observations from the $Poisson(2)$ distribution. These observations each represent the number of calls to the Piéchart Emporium call center in different one-minute intervals. Construct a histogram of this distribution. 
+
+```{r, ex7, exercise = TRUE}
+
+```
+
+```{r, ex7-solution}
+Y = rpois(10000, 2)
+gf_histogram( ~ Y)
+```
+
+### Exercise 8
+
+Find the probability that zero calls are received in a one-minute period. 
+
+```{r, ex8, exercise = TRUE}
+
+```
+
+```{r, ex8-solution}
+dpois(0, 2)
+```
+
+### Exercise 9
+
+Find the probability that more than two calls are received in a one-minute period. 
+
+```{r, ex9, exercise = TRUE}
+
+```
+
+```{r, ex9-solution}
+1 - ppois(2, 2)
+
+# OR SIMULATE
+
+Y = rpois(10000, 2)
+mean(Y > 2)
+```
+
+### Exercise 10
+
+Estimate the *maximum* number of calls received in any one-minute period. Use your 10,000 simulated Poisson observations from earlier!
+
+```{r, ex10, exercise = TRUE}
+
+```
+
+```{r, ex10-solution}
+Y = rpois(10000, 2)
+max(Y)
+```
+
+## Conclusion
+
+While we simulated data from the binomial, geometric, and Poisson distributions, R also has built-in functions for the **negative binomial** and **hypergeometric** distributions, in addition to a bunch of *continuous distributions* that we haven't even looked at yet. 
+
+Stay tuned!
+
+<center>
+
+![](https://media.giphy.com/media/5nSIhPtqyXqEjnjNGJ/giphy.gif)
+
+</center>

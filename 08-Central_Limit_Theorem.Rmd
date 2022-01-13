@@ -1,0 +1,305 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Central Limit Theorem"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+library(mosaic)
+library(tidyverse)
+library(learnr)
+
+theme_set(theme_minimal() +
+  theme(axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(size = 12, face = "bold"), 
+        axis.text.y = element_text(size = 12, face = "bold")))
+```
+
+
+```{r, eval = FALSE}
+# Needed packages!
+library(mosaic)
+library(tidyverse)
+```
+
+## Introduction
+
+We have worked through different methods for finding distributions of **functions of random variables**, $Y_{i}$, $i=1,\dots,n$. Now we'll treat the $Y_{1},Y_{2},\dots,Y_{n}$ as variables observed in a **random sample** from a **population** of interest. We'll assume that these variables are *independent* and *identically distributed* (**iid**, for short). 
+
+Certain functions of random variables observed in a *random sample* are used as **estimators** for an unknown *population parameter* of interest. For example, the **sample mean**, $$\bar{y}=\frac{1}{n}\sum_{i=1}^{n}y_{i},$$ is used to estimate the *population mean*, $\mu$. The *goodness* of this estimate depends on the random variables $Y_{1},Y_{2},\dots,Y_{n}$ and how they impact $\bar{Y}=(1/n)\sum Y_{i}$. 
+
+Because $\bar{Y}$ is a *function of random variables*, it follows that $\bar{Y}$ is a random variable itself! In fact, $\bar{Y}$ is a *special kind of random variable*: The random variable $\bar{Y}$ is an example of a **statistic**, because it is a function of *only* the random variables $Y_{1},Y_{2},\dots,Y_{n}$ and the sample size, $n$ (a constant). 
+
+###
+
+> 🚨 A **statistic** is a function of the observable random variables in a sample and known constants. 
+
+Other examples of **statistics** include:
+
+- The **sample variance**: $\frac{1}{n-1}\sum_{i=1}^{n}(Y_{i}-\bar{Y})^{2}$
+
+- The **range**: $R=Y_{(n)}-Y_{(1)}$, where $Y_{(n)}$ and $Y_{(1)}$ are the *maximum* and *minimum* **order statistics**
+
+In this lab we'll focus on the *distribution* of the sample mean using the **Central Limit Theorem**. 
+
+## Sampling Distributions
+
+Because **all statistics are random variables**, all statistics have *probability distributions* that illustrate (among other things) how much they *vary from sample to sample*. 
+
+- These "special" probability distributions are called **sampling distributions**. 
+
+One of the most important sampling distributions used in inferential statistics is that of the *sample mean*, which is a function of *only* the random variables $Y_{1},Y_{2},\dots,Y_{n}$ and the sample size, $n$. 
+
+###
+
+If $Y_{i}\sim iid\ Normal(\mu,\sigma^{2})$, then it follows that $\bar{Y}\sim Normal(\mu, \sigma^{2}/n)$. This can be shown using the **method of moment generating functions**, among other procedures, but we can also show it via simulation.
+
+Suppose $Y_{1},Y_{2}\sim iid\ Normal(100, 225)$. That is:
+
+- $E(Y_{i})=100$
+
+- $Var(Y_{i})=225\implies \sigma = 15$
+
+###
+
+🤔🤔 What does the *sampling distribution* of $\bar{Y}$ look like? First, let's simulate a *single sample* of size $n=2$ and hence a single $\bar{Y}$:
+
+```{r y_bar_norm_1, exercise = TRUE, exercise.eval = FALSE}
+# One simulation
+set.seed(338) # Use for reproducibility!
+n = 2; mu = 100; sigma = 15
+Y_samp = rnorm(n, mean = mu, sd = sigma)
+
+Y_bar = mean(Y_samp)
+Y_bar
+```
+
+###
+
+This number itself doesn't provide *any* information about the variability in $\bar{Y}$! A *sampling distribution* provides a theoretical model for the possible values of the statistic one would observe through **repeated sampling**. So, let's repeat this simulation a bunch of times!
+
+```{r, y_bar_norm_many, exercise = TRUE, exercise.eval = FALSE}
+# MANY simulations!
+set.seed(338) # Use for reproducibility!
+n = 2; mu = 100; sigma = 15
+
+Y_bar = replicate(10000, {
+  Y_samp = rnorm(n, mean = mu, sd = sigma)
+  mean(Y_samp)
+})
+c(mean(Y_bar), var(Y_bar))
+
+gf_histogram( ~ Y_bar)
+```
+
+###
+
+We can see that the *sampling distribution* appears approximately **Normal**, and that the mean and variance of $\bar{Y}$ are *approximately* equal to $\mu$ and $\sigma^{2}/n$, respectively. 
+
+In this example, we had a relatively small sample size, $n=2$, and relied heavily on the fact that the random sample $Y_{1},Y_{2}$ was *iid* Normal. 
+
+> **But what if the *Y*<sub>i</sub> are *not* Normal?!**
+
+## Central Limit Theorem
+
+If the random sample $Y_{1},\dots,Y_{n}$ are not Normally distributed, that's okay! As long as the sample size is *large* we can *approximate* the sampling distribution of $\bar{Y}$ with the Normal distribution, using the **Central Limit Theorem** (CLT). 
+
+> Let $Y_{1},Y_{2},\dots,Y_{n}$ be *independent* and *identically distributed* random variables with $E(Y_{i})=\mu$ and $Var(Y_{i})=\sigma^{2}<\infty$. Then $$Z_{n}=\frac{\bar{Y}-\mu}{\sigma/\sqrt{n}}\to Normal(0,1),\ \text{as}\ n\to\infty,$$ where $\bar{Y}=(1/n)\sum_{i=1}^{n}Y_{i}$. 
+
+**In other words**, for large $n$, the distribution of $\bar{Y}$ *after standardization* approaches a *standard Normal distribution*! 
+
+<center>
+![](https://media.giphy.com/media/BYnh6KLTUdiZSBtvdk/giphy.gif)
+</center>
+
+###
+
+This *is* a **big deal**! Let's take this all in...
+
+- 🚨🚨 The distribution of the $Y_{i}$ can be **anything**, as long as their mean and variance are *finite*. No matter what, the distribution of the *averages* of the $Y_{i}$ will converge to the standard Normal!
+
+- Though the "starting distribution" and *sample size* **DO** matter...
+
+Let's simulate the CLT using scenarios where the *random sample* $Y_{1},\dots,Y_{n}$ are **not** Normally distributed. 
+
+### Uniform Distribution
+
+Suppose $Y_{1},Y_{2},\dots,Y_{100}\sim iid\ Uniform(a=0, b=1)$. That is:
+
+- $E(Y_{i})=(a+b)/2=1/2$
+
+- $Var(Y_{i})=(b-a)^2/12=1/12\implies\sigma=1/\sqrt{12}$
+
+🤔🤔 What does the *sampling distribution* of $Z_{n}$ look like?
+
+```{r, clt_unif, exercise = TRUE, exercise.eval = FALSE}
+set.seed(338) # Use for reproducibility!
+n = 100; a = 0; b = 1
+mu = 1/2; sigma = 1/sqrt(12)
+
+Z = replicate(10000, {
+  Y_samp = runif(n, min = a, max = b) 
+  (mean(Y_samp) - mu)/(sigma/sqrt(n)) 
+})
+c(mean(Z), var(Z))
+
+gf_histogram( ~ Z)
+```
+
+###
+
+To recap:
+
+- The random sample $Y_{1},\dots,Y_{100}\sim iid\ Uniform(0, 1)$. In other words, the *sample* comes from a distribution that looks (approximately) like this:
+
+    ```{r, unif_samp, exercise = TRUE, exercise.eval = FALSE}
+    unif_samp = runif(10000, 0, 1)
+    gf_histogram( ~ unif_samp) + 
+      labs(x = "Y")
+    ```
+    - This is symmetric, but definitely does **not** look Normal!
+
+- The sample mean, $\bar{Y}$, *after standardization*, is well-approximated by a **standard Normal** distribution!
+
+### Exponential Distribution
+
+While the sample size in the previous example with the Uniform distribution was large with $n=100$, sample size *does* play a role, especially if it is small. Let's see an example of this, using the **exponential distribution**. 
+
+###
+
+**n = 2**
+
+Suppose $Y_{1},Y_{2}\sim iid\ Exponential(\beta = 2)$. That is:
+
+- $E(Y_{i})=2$
+
+- $Var(Y_{i})=2^{2}=4\implies \sigma=2$
+
+🤔🤔 What does the *sampling distribution* of $Z_{n}$ look like?
+
+```{r, exp_2, exercise = TRUE, exercise.eval = FALSE}
+# MANY simulations!
+set.seed(338) # Use for reproducibility!
+n = 2; beta = 2
+mu = 2; sigma = 2
+
+Z = replicate(10000, {
+  Y_samp = rexp(n, rate = 1/beta) #<<
+  (mean(Y_samp) - mu)/(sigma/sqrt(n)) #<<
+})
+c(mean(Z), var(Z))
+
+gf_histogram( ~ Z)
+```
+
+This sampling distribution is *definitely* not Normal!
+
+###
+
+**n = 100**
+
+Suppose $Y_{1},Y_{2},\dots,Y_{100}\sim iid\ Exponential(\beta = 2)$. That is:
+
+- $E(Y_{i})=2$
+
+- $Var(Y_{i})=2^{2}=4\implies \sigma=2$
+
+🤔🤔 What does the *sampling distribution* of $Z_{n}$ look like?
+
+```{r, exp_100, exercise = TRUE, exercise.eval = FALSE}
+# MANY simulations!
+set.seed(338) # Use for reproducibility!
+n = 100; beta = 2 #<<
+mu = 2; sigma = 2 
+
+Z = replicate(10000, {
+  Y_samp = rexp(n, rate = 1/beta) 
+  (mean(Y_samp) - mu)/(sigma/sqrt(n)) 
+})
+c(mean(Z), var(Z))
+
+gf_histogram( ~ Z)
+```
+
+This sampling distribution is better-approximated by a Normal distribution compared to the case where $n=2$, but we can still see a *hint* of right-skew. 
+
+###
+
+**What's going on?** 👀
+
+The **key** is that we sampled from a highly right-skewed distribution! Therefore, the CLT requires a larger $n$ before the sampling distribution of $\bar{Y}$ (and $Z_{n}$) can be well-approximated by a Normal distribution. 
+
+Let's see what the Exponential(2) distribution looks like in the first place!
+
+```{r, exp_y, exercise = TRUE, exercise.eval = FALSE}
+Y = rexp(10000, rate = 1/2)
+gf_histogram(~ Y) + 
+  labs(title = "Y ~ Exponential(2)")
+```
+
+While the extreme values in the upper tail of this distribution have relatively low likelihood of being sampled, they hold *much heavier weight* in the sample mean of smaller samples. 
+
+## Exercises 
+
+### Exercise 1 
+
+The CLT also applies when the "starting distribution" is discrete!
+
+Suppose $Y_{1},Y_{2},\dots,Y_{5}\sim iid\ Binomial(n = 20, p = 0.20)$. That is:
+
+- $E(Y_{i})=np = 4$
+
+- $Var(Y_{i})=np(1-p)=3.2\implies \sigma=1.789$
+
+🤔🤔 What does the *sampling distribution* of $Z_{n}$ look like? Calculate the mean and variance of $Z_{n}$ (these *should* be close to 0 and 1), and construct a histogram of the sampling distribution. 
+
+```{r, ex1, exercise = TRUE}
+
+```
+
+```{r, ex1-solution}
+set.seed(338) # Use for reproducibility!
+n = 5; size = 20; p = 0.2
+mu = 4; sigma = 1.789
+
+Z = replicate(10000, {
+  Y_samp = rbinom(n, size = size, prob = p) 
+  (mean(Y_samp) - mu)/(sigma/sqrt(n)) 
+})
+c(mean(Z), var(Z))
+
+gf_histogram( ~ Z)
+```
+
+### Exercise 2
+
+Suppose $Y_{1},Y_{2},\dots,Y_{5}\sim iid\ Poisson(\lambda = 2)$. That is:
+
+🤔🤔 What does the *sampling distribution* of $Z_{n}$ look like? Repeat this exercise for $n\in\{5, 30, 1000\}$. 
+
+```{r, ex2, exercise = TRUE}
+
+```
+
+```{r, ex2-solution}
+set.seed(338) # Use for reproducibility!
+n = 5; lambda = 2
+mu = 2; sigma = sqrt(2)
+
+Z = replicate(10000, {
+  Y_samp = rpois(n = n, lambda = lambda) 
+  (mean(Y_samp) - mu)/(sigma/sqrt(n)) 
+})
+c(mean(Z), var(Z))
+
+gf_histogram( ~ Z)
+```
+
+# References
+
+- *Mathematical Statistics with Applications* (2008) by D. Wackerly, W. Mendenhall, and R. Schaeffer. 

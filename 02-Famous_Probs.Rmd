@@ -1,0 +1,494 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Simulating Famous Probability Problems"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+#knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction
+
+In this lab, we'll continue with our work on using simulation techniques in R to *estimate* probabilities. This time, we will simulate *well-known* (dare I say, **famous** 🤩) probability problems. 
+
+<center>
+
+![](https://media.giphy.com/media/dvJCrCDt4Leoynat98/giphy.gif)
+
+</center>
+
+To recap, the two main simulation functions we've looked at so far are **base R's** `sample()` and `replicate()`:
+
+### `sample()` 
+
+```{r, eval = FALSE}
+sample(x, size, replace = FALSE, prob = NULL)
+```
+
+- `x` is the **vector** of all *objects* from which we are sampling. 
+
+- `size` is the number of objects we would like to select from `x`. 
+
+- `replace` is a `TRUE` or `FALSE` value indicating whether sampling be done *with replacement*.
+    
+- `prob` is a *vector* of **probability weights** for each element in your vector, `x`. 
+
+### `replicate()`
+
+```{r, eval = FALSE}
+replicate(n, expr)
+```
+
+- `n` is the number of times I want to repeat the single trial. I usually set this to 10,000. 
+
+- `expr` is the *block of code* we wish to repeat `n` times. 
+
+I usually like to surround the `expr` in brackets, `{...}` - note that this is required if the block of code in `expr` includes more than one line. 
+
+### The `replicate()` Workflow
+
+As a reminder, I recommend you follow this workflow from [Speegle and Clair (2021)](https://mathstat.slu.edu/~speegle/_book/preface.html) when using `replicate()` to estimate probabilities:
+
+1. Write code that performs the experiment a single time.
+
+    ```{r, coin_toss, exercise = TRUE, exercise.eval = FALSE}
+    coin_tosses = sample(c("H", "T"), size = 20, replace = TRUE)
+    coin_tosses
+    sum(coin_tosses == "H") >= 12
+    ```
+
+2. Replicate the experiment a small number of times and **check** the results:
+
+    ```{r, echo = TRUE, eval = FALSE}
+    replicate(100, {
+      EXPERIMENT GOES HERE
+      ...
+    })
+    ```
+    
+3. Replicate the experiment a large number of times and **store** the results:
+
+    ```{r, eval = FALSE}
+    event = replicate(10000, {
+      EXPERIMENT GOES HERE
+      ...
+    })
+    ```
+
+4. Estimate the probability with `mean(event)`. Note that `event` will *always* be a **logical vector**, so you'd be taking the mean of a bunch of 1s and 0s. 
+
+## Birthday Problem
+
+First, we'll review some simulation techniques in R by walking through the [Birthday Problem](https://en.wikipedia.org/wiki/Birthday_problem):
+
+> Suppose that there is a room with *n* people, and each has an equally-likely chance of being born on any of the 365 days of the year (sorry, February 29 birthdays 😄). Assume that each person is *independent*, so one person's birthday does not have any influence on another person's birthday. 
+
+> What is the probability that two people in the room have the same birthday?
+
+One characteristic of the Birthday Problem that makes it a *classic* is that the result appears counterintuitive at first, but is actually true. While there is technically a different probability for each possible value of *n*, the *truly counterintuitive result* is the following:
+
+- We need at least **23 people in the same room** to have a 50% probability that any two people have the same birthday. 
+
+Let's prove it with a simulation! 
+
+### Single Experiment
+
+First, let's simulate a single room with *n = 23* people, and check whether any two have the same birthday. Because we don't care about the *actual* day/month combination, we can simply select birthdays from the numbers `1:365`:
+
+```{r, prepare-bday}
+set.seed(338) # Use for reproducibility!
+birthdays = sample(1:365, size = 23, replace = TRUE)
+```
+
+```{r, bday-sample, exercise = TRUE, exercise.eval = FALSE}
+set.seed(338) # Use for reproducibility!
+birthdays = sample(1:365, size = 23, replace = TRUE)
+
+birthdays
+```
+
+- **Note**: Make sure to sample *with replacement* here. Otherwise, we'll never find a birthday match!
+
+### 
+
+Next, we can use two nifty base R functions to detect whether *any* of the elements in the `birthdays` vector are *duplicated*:
+
+- The `duplicated()` function determines which elements of a vector are *duplicates* of other elements. It returns a `TRUE` or `FALSE` for *each* element in the vector.
+
+- The `any()` function determines whether *at least one* element in the vector is `TRUE`. It returns a *single* `TRUE` or `FALSE`.
+
+```{r, dup_bdays, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-bday"}
+duplicated(birthdays)
+```
+
+```{r, any_dup_bdays, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-bday"}
+any(duplicated(birthdays))
+```
+
+In my room of 23 people, no one shared a birthday. What about you? (Replace the *338* in `set.seed()` and type the `duplicated()` and `any()` into the first code chunk to see a different result.)
+
+### Many Experiments
+
+Now we'll use `replicate()` to repeat this experiment *many times*. All I need to do is copy/paste the code for the *single* experiment into the body of `replicate()`:
+
+```{r, bday_sim, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-bday"}
+bday_match = replicate(10000, {
+  birthdays = sample(1:365, size = 23, replace = TRUE)
+  any(duplicated(birthdays))
+})
+
+mean(bday_match)
+```
+
+In 10,000 simulations, over 50% of the rooms with 23 people had matching birthdays! And because R said it, it must be true...
+
+### Exercise 1
+
+Repeat the Birthday Problem simulation for *n = 50*. 
+
+```{r, ex1, exercise = TRUE}
+
+```
+
+```{r, ex1-solution}
+bday_match = replicate(10000, {
+  birthdays = sample(1:365, size = 50, replace = TRUE)
+  any(duplicated(birthdays))
+})
+
+mean(bday_match)
+```
+
+## Monty Hall Problem
+
+The [Monty Hall Problem](https://en.wikipedia.org/wiki/Monty_Hall_problem), named after the former host of *Let's Make a Deal*, is perhaps one of the most controversial problems in all of probability. 
+
+<center>
+
+![](https://media.giphy.com/media/611e31zP6VZDy/giphy.gif)
+
+</center>
+
+Here's the problem statement, taken from its Wikipedia page:
+
+> Suppose you're on a game show, and you're given the choice of three doors: Behind one door is a car; behind the others, goats. You pick a door, say No. 1, and the host, who knows what's behind the doors, opens another door, say No. 3, which has a goat. He then says to you, "Do you want to pick door No. 2?" Is it to your advantage to switch your choice?
+
+Most people will initially claim that there is a 50/50 chance of winning (i.e., a probability of 0.5) if they switch their choice. But it turns out **contestants who switch have a 2/3 chance of winning the car**!
+
+A key assumption that often flies under the radar is that the host *knows what's behind the doors*.
+
+Let's work through this problem with a simulation!
+
+### Single Experiment
+
+**Step 1: Our initial choice**
+
+The Monty Hall experiment is a bit more involved than the Birthday Problem, and there are several moving pieces. First, we need to select: 
+
+1. The door that contains the car, and 
+
+2. Our initial choice. 
+
+We can simulate this with two calls to `sample()`:
+
+```{r, prepare-mh}
+set.seed(228)  # Use for reproducibility!
+prize = sample(1:3, size = 1)
+choice = sample(1:3, size = 1)
+```
+
+```{r, mh, exercise = TRUE, exercise.eval = FALSE}
+set.seed(228)  # Use for reproducibility!
+prize = sample(1:3, size = 1)
+choice = sample(1:3, size = 1)
+
+prize
+choice
+```
+
+###
+
+**Step 2: Monty's options**
+
+Next, Monty needs to choose a door. Note that he will only choose a door that satisfies BOTH of the following conditions:
+
+- We did not choose the door first. 
+
+- The door does not contain the car. 
+
+Therefore, Monty's options will consist of the vector `c(1,2,3)`, *minus* our `choice` and the `prize` door:
+
+```{r, mh_monty_options, exercise.setup = "prepare-mh"}
+monty_choice_options = c(1,2,3)[-c(prize, choice)]
+```
+```{r, mh2, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-mh"}
+monty_choice_options = c(1,2,3)[-c(prize, choice)]
+monty_choice_options
+```
+
+###
+
+**Step 3: Monty's choice**
+
+Next, we need to determine which door Monty *actually* opens. This comes down to two possibilities:
+
+- If the door we initially chose *contains the car*, then Monty will open *either* one of the remaining doors **at random**.
+
+- If the door we initially chose *does not contain the car*, then Monty only has one option: the remaining door that *does not contain the car*. There is nothing random about his choice in this case!
+
+We can simulate this part with an **if/else statement**, which follows this general format:
+
+```{r, echo = TRUE, eval = FALSE}
+ifelse(test, yes, no)
+```
+
+- `test` is a **logical** condition
+
+- `yes` is the value if the logical is `TRUE`
+
+- `no` is the value if the logical is `FALSE`
+
+Using the `test` condition of our `choice` door containing the `prize`, it will look something like this:
+
+```{r, mh_monty_choice, exercise.setup = "mh_monty_options"}
+set.seed(228)  # Use for reproducibility!
+prize = sample(1:3, size = 1)
+choice = sample(1:3, size = 1)
+
+monty_choice_options = c(1,2,3)[-c(prize, choice)]
+
+monty_choice = ifelse(choice == prize, 
+                      sample(monty_choice_options, size = 1), 
+                      monty_choice_options
+)
+```
+```{r, mh3, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "mh_monty_choice"}
+monty_choice = ifelse(choice == prize, 
+                      sample(monty_choice_options, size = 1), 
+                      monty_choice_options
+)
+monty_choice
+```
+
+###
+
+**Step 4: Our switching options**
+
+Finally, we need to determine which door we could potentially *switch* to. This will *always* be the door that satisfies BOTH of the following conditions:
+
+- We did not choose the door first. (We can't *switch* to the door we already chose!) 
+
+- Monty didn't open this door in the previous step. 
+
+Similar to Step 2, we have:
+
+```{r, mh_our_switch_options, exercise.setup = "mh_monty_choice"}
+set.seed(228)  # Use for reproducibility!
+prize = sample(1:3, size = 1)
+choice = sample(1:3, size = 1)
+
+monty_choice_options = c(1,2,3)[-c(prize, choice)]
+
+monty_choice = ifelse(choice == prize, 
+                      sample(monty_choice_options, size = 1), 
+                      monty_choice_options
+)
+
+switch_option = c(1,2,3)[-c(choice, monty_choice)]
+```
+```{r, mh4, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "mh_our_switch_options"}
+switch_option = c(1,2,3)[-c(choice, monty_choice)]
+switch_option
+```
+
+###
+
+**Step 5: Does switching win?**
+
+Let's check if the `prize` is in the door given by `switch_option`:
+
+```{r, mh_win, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "mh_our_switch_options"}
+prize == switch_option
+```
+
+###
+
+**I win!!!**
+
+<center>
+
+![](https://media.giphy.com/media/MFmHhd0LenGBsqp7Uh/giphy.gif)
+
+</center>
+
+**Try playing with a different seed!**
+
+- Play a new game by using a *different number* from 338 in `set.seed(338)`. Paste the code from each of the previous five steps into the chunk below. Did switching doors win you a car?
+
+```{r sandbox, exercise = TRUE, exercise.eval = FALSE}
+
+```
+
+
+### Many Experiments
+
+We wrote most of the code for this in the *single experiment*! Some of us won, and some of us lost, depending on the value we entered in `set.seed()`. But it turns out that if we repeated this experiment *over and over*, we'd win 2/3 of the time!
+
+**Let's prove it**:
+
+```{r, mh_sim, exercise = TRUE, exercise.eval = FALSE}
+switch_win = replicate(10000, {
+  prize = sample(1:3, size = 1)
+  choice = sample(1:3, size = 1)
+  
+  monty_choice_options = c(1,2,3)[-c(prize, choice)]
+  
+  monty_choice = ifelse(choice == prize, 
+                        sample(monty_choice_options, size = 1), 
+                        monty_choice_options)
+                      
+  switch_option = c(1,2,3)[-c(choice, monty_choice)]
+  
+  prize == switch_option
+})
+
+mean(switch_win)
+```
+
+We could also prove this with **Bayes' Rule**, but R is *at least* as much fun. 
+
+### Exercise 2 
+
+Simulate the Monty Hall Problem for *five doors* instead of three. In other words, you choose a door, and Monty opens *three* doors, leaving you left to choose between your initial choice, and one other, unopened door. 
+
+```{r, ex2, exercise = TRUE}
+
+```
+
+```{r, ex2-solution}
+n_doors = 5
+switch_win = replicate(10000, {
+  prize = sample(1:n_doors, size = 1)
+  choice = sample(1:n_doors, size = 1)
+  
+  monty_choice_options = c(1:n_doors)[-c(prize, choice)]
+  
+  # No ifelse() needed, as Monty *always* has more than one door to choose from!
+  monty_choice = sample(monty_choice_options, size = n_doors - 2)
+                      
+  switch_option = c(1:n_doors)[-c(choice, monty_choice)]
+  
+  prize == switch_option
+})
+
+mean(switch_win)
+```
+
+### Exercise 3**
+
+Now simulate the Monty Hall Problem for *100 doors*!
+
+```{r, ex3, exercise = TRUE}
+
+```
+
+```{r, ex3-solution}
+n_doors = 100
+switch_win = replicate(10000, {
+  prize = sample(1:n_doors, size = 1)
+  choice = sample(1:n_doors, size = 1)
+  
+  monty_choice_options = c(1:n_doors)[-c(prize, choice)]
+  
+  # No ifelse() needed, as Monty *always* has more than one door to choose from!
+  monty_choice = sample(monty_choice_options, size = n_doors - 2)
+                      
+  switch_option = c(1:n_doors)[-c(choice, monty_choice)]
+  
+  prize == switch_option
+})
+
+mean(switch_win)
+```
+
+## Your Turn!
+
+### Powerball
+
+The [MA Powerball lottery](https://masslottery.com/games/draw-and-instants/powerball/how-to-play) randomly selects five numbers from  1 through 69 and arranges them in order, and one *powerball* number from 1 through 26. If your 6 numbers match the Powerball numbers exactly (including the *powerball* number, which is always listed last), then you win the jackpot. 
+
+<center>
+
+![](https://media.giphy.com/media/Vk7uzqIJtSwoM/giphy.gif)
+
+</center>
+
+### Exercise 4 
+
+Estimate the probability that a particular selection of five numbers plus the powerball will win the jackpot.
+
+[*Hint*: Pick any five numbers plus the powerball as "your numbers", and run a simulation to check how many times the Powerball numbers match your own. This probability will be *very* small, as you might expect in a lottery! 😅]
+
+```{r, ex4, exercise = TRUE}
+
+```
+
+```{r, ex4-solution}
+my_numbers = 1:6
+
+powerball_win = replicate(10000, {
+  first_five = sort(sample(1:69, size = 5, replace = FALSE))
+  powerball = sample(1:26, size = 1, replace = FALSE)
+  
+  sum(c(first_five, powerball) == my_numbers) == 6
+})
+mean(powerball_win)
+```
+
+### Exercise 5
+
+If *any* one of your numbers plus your powerball matches, you win 100 dollars. Find the probability that this outcome occurs. 
+
+```{r, ex5, exercise = TRUE}
+
+```
+
+```{r, ex5-solution}
+my_numbers = 1:6
+
+hundred_win = replicate(10000, {
+  first_five = sort(sample(1:69, size = 5, replace = FALSE))
+  powerball = sample(1:26, size = 1, replace = FALSE)
+  
+  (sum(first_five == my_numbers[1:5])) == 1 & (my_numbers[6] == powerball)
+})
+mean(hundred_win)
+```
+
+### Hatcheck Problem
+
+A new restaurant employee checks the hats of 100 people without giving them claim check numbers. When the customers return, the checker returns the hats at random. 
+
+### Exercise 6
+
+What is the probability that nobody get the correct hat back?
+
+```{r, ex6, exercise = TRUE}
+
+```
+
+```{r, ex6-solution}
+wrong_hats = replicate(10000, {
+  hats = sample(1:100, size = 100, replace = FALSE)
+  sum(1:100 == hats) == 0
+})
+mean(wrong_hats)
+```
+

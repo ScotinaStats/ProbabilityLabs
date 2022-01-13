@@ -1,0 +1,503 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Iteration and the Law of Large Numbers"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(mosaic)
+library(tidyverse)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction
+
+This lab is *all* about **iteration**! We've used iteration before to repeat a task over and over to *estimate* a probability, using the **implicit loop** function, `replicate()`. In this lab, we will focus on **explicit loops** in the form of *for loops* and *while loops*. 
+
+Specifically, we will use iteration to simulate the **law of large numbers**, in addition to illustrating how estimated probabilities can *change* as we change certain parameter values. 
+
+Let's get started with some loops!
+
+<center>
+
+![](https://media.giphy.com/media/ieaUdBJJC19uw/giphy.gif)
+
+</center>
+
+## For Loops
+
+Suppose we wanted to calculate the mean for several *different* binomial distributions. First, let's simulate different $Binomial(n = 20, p = 0.75)$ samples and save them in a *data.frame*:
+
+```{r, prepare-binom}
+set.seed(338)
+binomial_data = data.frame(Y_1 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_2 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_3 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_4 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_5 = rbinom(1000, size = 20, prob = 0.75))
+```
+
+```{r, binom-data, exercise = TRUE, exercise.eval = FALSE}
+set.seed(338)
+binomial_data = data.frame(Y_1 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_2 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_3 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_4 = rbinom(1000, size = 20, prob = 0.75), 
+                           Y_5 = rbinom(1000, size = 20, prob = 0.75))
+```
+
+We *could* calculate the mean for each `Y_i` variable one-by-one, for example:
+
+```{r binom-mean-simple, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-binom"}
+mean(binomial_data$Y_1)
+mean(binomial_data$Y_2)
+```
+
+### 
+
+But it'll quickly become tedious to copy/paste the same line over and over again (imagine having 1,000 variables instead of five!). Instead, we could use a **for loop**:
+
+```{r, binom-loop, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-binom"}
+binom_means = rep(NA, 5)
+
+for(i in 1:5){
+  binom_means[i] = mean(binomial_data[, i]) # Calculates mean of i_th column
+}
+binom_means
+```
+
+### Loop Components
+
+Each for loop has three components (Wickham and Grolemund, [R for Data Science](https://r4ds.had.co.nz/)):
+
+1. The **output**: 
+    ```{r, eval = FALSE}
+    binom_means = rep(NA, 5)
+    ```
+    This is the object in which we store our final results. In our loop, we stored the five binomial means in the `binom_means` vector. For *efficiency*, we allocated some space ahead of time by setting this equal to a vector of five `NA` values (as opposed to an empty vector, `binom_means = c()`). When Anthony was in grad school, he would use an empty vector for storing loop results, and it took *much longer* to run simulations 😳😳😳...
+
+###
+
+2. The **sequence**:
+    ```{r, eval = FALSE}
+    i in 1:5
+    ```
+    We loop over the `1:5` vector sequence. The loop will run five times, and will assign a different value from the sequence to `i` each time. 
+ 
+###
+
+3. The **body**:
+    ```{r, eval = FALSE}
+    binom_means[i] = mean(binomial_data[, i]) # Calculates mean of i_th column
+    ```
+    This is where everything happens! It is run over and over again, once for each value of `i`. By using *indexing* with the `binom_means` vector that we saved ahead of time, we will add a different binomial mean to each of the five positions in `binom_means`. 
+    
+### Exercise 1
+
+Let's toss a *simulated* coin and see how $P(Heads)$ changes as we increase the number of coin tosses! Simulate tossing a coin once, twice, ..., all the way up to 10,000 times (our *sequence* will be `1:10000`). Calculate the proportion of heads for each set of coin tosses, and store them in the vector `prob_H`. 
+
+```{r ex1, exercise = TRUE}
+
+```
+
+
+```{r, ex1-solution}
+prob_H = rep(NA, 10000)
+
+for(i in 1:10000){
+  coin_flip = sample(0:1, size = i, replace = TRUE)
+  prob_H[i] = mean(coin_flip)
+}
+```
+
+## The Law of Large Numbers
+
+For pretty much *all* of the simulations we've done so far in this class, we've chosen to perform between 1,000 and 10,000 *replicates*. How did we settle on this? Well, we have the **[Law of Large Numbers](https://en.wikipedia.org/wiki/Law_of_large_numbers) (LLN)** to thank!
+
+> **Law of Large Numbers (weak version)**: The mean of $n$ observations from a random variable $Y$ will *converge* to $E(Y)$ as $n\to\infty$. In other words, $$\lim_{n\to\infty}\frac{1}{n}\sum_{i=1}^{n}Y_{i}=E(Y).$$
+
+In other words, as we increase the number of iterations we perform, our *estimated* probability will converge to the *true* probability! Using our results from Exercise 1, let's see the LLN in action:
+
+```{r, prepare-ex1}
+set.seed(338)
+prob_H = rep(NA, 10000)
+
+for(i in 1:10000){
+  coin_flip = sample(0:1, size = i, replace = TRUE)
+  prob_H[i] = mean(coin_flip)
+}
+```
+
+```{r, ex1-plot, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-ex1"}
+gf_point(prob_H ~ 1:10000) + 
+  geom_line() +
+  geom_hline(yintercept = 0.5, size = 1, 
+             linetype = "dashed", color = "dodgerblue") + 
+  labs(x = "Number of coin flips", y = "P(Heads)") +
+  theme_bw()
+```
+
+### Binomial Expected Value
+
+From class, we know that if $Y\sim Binomial(n,p)$, then $E(Y)=np$. For example if $Y\sim Binomial(20, 0.25)$, then $E(Y)=5$. A sequence of 20 Bernoulli trials with independent success probabilities of 0.25 would be expected to yield 5 successes. But let's see what happens when we *estimate* the expected value with varying numbers of simulated observations from the $Binomial(20, 0.25)$ distribution:
+
+```{r, binom-mean-loop, exercise = TRUE, exercise.eval = FALSE}
+n_vec = 1:10000
+
+mean_Y = rep(NA, 10000)
+
+for(i in 1:10000){
+  Y = rbinom(n_vec[i], size = 20, prob = 0.25)
+  mean_Y[i] = mean(Y)
+}
+```
+
+###
+
+Let's take this piece by piece:
+
+- First, we *initialize* an output vector called `mean_Y`, where we will store 10,000 different simulated expected values. 
+
+- The numbers 1 through 10,000 *also* represent the respective sizes of the `Y` vector generated from `rbinom()` with each iteration (stored in `n_vec`). So, the first iteration will sample a single observation from the $Binomial(20, 0.25)$ distribution. 
+
+- We replace the $i$th position in `mean_Y` with the *mean* of `Y` based on a sample of `i` observations. 
+
+### Exercise 2
+
+Generate a graphic that shows the relationship between the number of observations sampled from the $Binomial(20, 0.25)$ distribution and the estimated $E(Y)$.
+
+[**Hint**: This is similar to the graph we constructed earlier based on coin flips!]
+
+```{r ex2, exercise = TRUE, exercise.setup = "binom-mean-loop"}
+
+```
+
+
+```{r, ex2-solution}
+n_vec = 1:10000
+
+mean_Y = rep(NA, 10000)
+
+for(i in 1:10000){
+  Y = rbinom(n_vec[i], size = 20, prob = 0.25)
+  mean_Y[i] = mean(Y)
+}
+
+gf_point(mean_Y ~ n_vec) + 
+  geom_line() + 
+  geom_hline(yintercept = 5, size = 1, 
+             linetype = "dashed", color = "dodgerblue") + 
+  labs(x = "Number of simulated observations", y = "E(Y)") +
+  theme_bw()
+```
+
+
+### For Loop Tricks
+
+You might've noticed that for loop took *a bit* longer to run than other code we've run so far. Here are a few tricks that you could use to keep track of the *progress* of your for loop while it runs:
+
+- Add `print(i)` at the end of the *body* of your loop. If `i` increases based on the progress of the loop, this will allow you to pinpoint *exactly* how close your simulation is to finishing. 
+
+- Play a [notification sound](https://www.r-project.org/nosvn/pandoc/beepr.html) with `{beepr}`. Yes, R can play sound. If you want to get up and grab something to eat while your simulation runs, you can quickly stop whatever you're doing and run back to your laptop when you hear the notification sound! Just add `beep(8)` (or some other number between 1 and 11) *outside* of the for loop itself, and the line will run after the simulation has finished. 
+
+- I don't know as much about these, but there are [packages](https://github.com/r-lib/progress) that allow you to visualize a *progress bar* for your simulation. 
+
+In the code chunk below, try adding `beepr::beep(8)` to the end of your for loop from the previous exercise. Make sure you turn on your sound!
+
+```{r, beepr, exercise = TRUE, exercise.eval = FALSE}
+
+```
+
+
+## The Birthday Problem, Revisited
+
+Recall the **Birthday Problem** from a previous lab:
+
+> Suppose that there is a room with *n* people, and each has an equally-likely chance of being born on any of the 365 days of the year (sorry, February 29 birthdays 😄). Assume that each person is *independent*, so one person's birthday does not have any influence on another person's birthday. 
+
+> What is the probability that two people in the room have the same birthday?
+
+While we estimated the probability for a single value of *n*, let's use a for loop to estimate the probability for *many* different values of *n*!
+
+```{r, bday-loop, exercise = TRUE, exercise.eval = FALSE}
+n_vec = 2:100
+
+prob_match = rep(NA, length(n_vec))
+
+for(i in 1:length(n_vec)){
+  bday_match = replicate(10000, {
+    birthdays = sample(1:365, size = n_vec[i], replace = TRUE)
+    any(duplicated(birthdays))
+  })
+  
+  prob_match[i] = mean(bday_match)
+}
+
+gf_point(prob_match ~ n_vec) + 
+  geom_line() + 
+  labs(x = "Number of people in a room", y = "P(Birthday match)") +
+  theme_bw()
+```
+
+###
+
+This is actually a **nested loop**, though the loop within the *explicit* for loop is an *implicit* loop via `replicate()`. Let's take this piece by piece:
+
+- I chose to simulate the Birthday Problem for *n* people in the same room, where *n* ranged from 2 to 100 (why start at 2 and not 1?). I saved this as `n_vec` so I can apply indexing when I reach the body of the for loop. 
+
+- We will be storing the different estimated probabilities in the vector `prob_match`. 
+
+- The body of the for loop is actually just the exact same code that we used to simulate the Birthday Problem from a previous lab! The only thing that I changed was to vary the `size`, or the number of people in the room together. Now, `size` will be a different element from `n_vec` for each run through the for loop. 
+
+- From the visual, it appears that once ~60 people are in a room together, there is nearly a 100% chance of a birthday match! This makes more sense when we take into account the fact that there are `choose(60, 2)` $=1770$ different possible pairs of people who could share a birthday. 
+
+## The Newton-Pepys Problem, Revisited
+
+In class we only looked at the Newton-Pepys Problem for 6, 12, and 18 die tosses. But because we can now use R to design much more *powerful* simulations, we can also estimate the probability of at least 100 heads in 600 total die tosses!
+
+### Exercise 3
+
+Similar to the Birthday Problem loop, let's see what happens when we toss 6 die, 12 die, 18 die, 24 die, 30 die, etc. 
+
+- What is the probability of tossing at least one 6 out of 6 total die tosses?
+
+- What is the probability of tossing at least two 6s out of 12 total die tosses?
+
+- What is the probability of tossing at least *n* 6s out of *6n* total die tosses?
+
+Simulate the Newton-Pepys problem using values of *n* from 1 through 100. Construct a graphic to show the association between (a) the probability of at least one 6 *converges* and (b) the total number of die tossed. 
+
+[**Note**: I timed this and it will take around 30 seconds to run. Hang in there!]
+
+```{r ex3, exercise = TRUE}
+
+```
+
+
+```{r, ex3-solution}
+n_vec = 1:100
+
+prob_6 = rep(NA, length(n_vec))
+
+for(i in 1:100){
+  np_rolls = replicate(10000, {
+    dice_roll = sample(1:6, size = 6*i, replace = TRUE)
+    sum(dice_roll == 6) >= i
+  })
+  prob_6[i] = mean(np_rolls)
+}
+
+gf_point(prob_6 ~ n_vec) + 
+  geom_line() + 
+  labs(x = "n", y = "P(at least n 6s in 6n die tosses") + 
+  theme_bw()
+```
+
+## While Loops
+
+A **while loop** is another *explicit loop* that repeats a procedure until a specific condition is met. The general format looks something like this:
+
+```{r, while-moose, exercise = TRUE, exercise.eval = FALSE}
+i = 0
+while(i <= 10){
+  print("Moose")
+  
+  i = i + 1
+}
+```
+
+We begin by *initializing* the `i` object, and add increments of 1 each time we progress through the loop. Only while `i <= 10` will the loop run. 
+
+### Gambler's Ruin
+
+We'll utilize while loops with another *classic* probability problem, the Gambler's Ruin:
+
+> Moose and Anthony are playing a game, as they often do. Moose has 1 treat and Anthony has 2 treats, and each play of the game gives the winning player one treat from the loser. While Moose starts out with fewer treats, Moose is a better player at this game and wins *2/3* of the time. They play until one player loses *all* treats. 
+
+> Obviously, Moose deserves *all* the treats. Anthony doesn't even like them. What is the probability that Moose wins?
+
+Let's break this up into parts. 
+
+###
+
+1. First, we want to *initialize* both Moose's and Anthony's *treat counts*:
+    ```{r, treats, exercise = TRUE, exercise.eval = FALSE}
+    moose_treats = 1
+    anthony_treats = 2
+    ```
+    ```{r, prepare-treats}
+    moose_treats = 1
+    anthony_treats = 2
+    ```
+
+###
+
+2. Next, let's see what *one game* looks like:
+    ```{r, one-game, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-treats"}
+    # Moose = 1, Anthony = -1 b/c Moose is number 1
+    winner = sample(c(1, 1, -1), size = 1)
+  
+    moose_treats = moose_treats + winner
+    anthony_treats = anthony_treats - winner
+    
+    moose_treats
+    anthony_treats
+    ```
+  There are several ways to simulate one game! I choose to assign Moose wins a value of "1" and Anthony wins a value of "-1", so I could easily apply them to the updated values of `moose_treats` and `anthony_treats`. I had originally sampled from `c("Moose", "Moose", "Anthony)` and updated the treat counts with `ifelse` statements.
+  
+###
+
+3. We can wrap the *one game* into a **while loop** now! We just need to set the *condition*. The game will continue until *either* Moose *or* Anthony lose all of their treats. In other words, the game will continue **while** `moose_treats > 0` **AND** `anthony_treats > 0`. 
+
+###
+
+Let's see how this all looks in a while loop:
+
+```{r, moose-full-loop, exercise = TRUE, exercise.eval = FALSE}
+moose_treats = 1
+anthony_treats = 2
+
+while(moose_treats > 0 & anthony_treats > 0){
+  winner = sample(c(1, 1, -1), size = 1)
+  
+  moose_treats = moose_treats + winner
+  anthony_treats = anthony_treats - winner
+
+}
+treat_winner = ifelse(moose_treats > 0, "Moose", "Anthony")
+
+treat_winner
+```
+
+At the end, I used an `ifelse` statement to assign the winner based on Moose's treat count. If the while loop ends and `moose_treats > 0`, that means Anthony lost all of his treats to Moose and all is right in the world. '
+
+###
+
+🚨🚨🚨
+
+This still doesn't answer the original question:
+
+> What is the probability that Moose wins?
+
+That's where **you** come in! 
+
+### Exercise 4
+
+Using `replicate()` or a *for loop* (either will work), *estimate* the probability that Moose wins. 
+
+[**Note**: The *true* probability is *4/7*.] 
+
+```{r ex4, exercise = TRUE}
+
+```
+
+
+```{r, ex4-solution}
+moose_wins = replicate(10000, {
+  moose_treats = 1
+  anthony_treats = 2
+
+  while(moose_treats > 0 & anthony_treats > 0){
+    winner = sample(c(1, 1, -1), size = 1)
+  
+    moose_treats = moose_treats + winner
+    anthony_treats = anthony_treats - winner
+
+}
+  treat_winner = ifelse(moose_treats > 0, "Moose", "Anthony")
+  treat_winner == "Moose"
+})
+mean(moose_wins)
+```
+
+### Geometric Distribution
+
+In class, we simulated probabilities from the **geometric distribution** using methods that weren't *exactly* precise. For example to find the *number of trial*, $Y$, on which the **first head occurs**, we ran code that looked something like this:
+
+```{r}
+coin_flips = sample(c("Heads", "Tails"), size = 100, replace = TRUE)
+which(coin_flips == "Heads")[1]
+```
+
+In other words, we worked under a *fixed sample size*, 100, and just extracted the *index* for which "Heads" first appeared in `coin_flips`. This works in this scenario since the *success probability* is 0.5 (hence, so is the failure probability); the probability of *not* finding a success in 100 trials is...
+
+```{r}
+0.5^100
+```
+
+We could also use a while loop, where the loop will continue until the first head appears!
+
+### Exercise 5
+
+Rewrite the $Geometric(0.5)$ simulation with a *while loop*. A few things you'll need:
+
+- Set the initial `toss_num` to 1. We will add increments of 1 after each coin toss. 
+
+- We will only run the loop *while* `coin_flip` equals "Tails". The loop will stop once we flip our first "Heads".
+    - Set `coin_flip` equal to *something* (literally anything, as long as it isn't "Heads") outside of the loop. This will be used in the condition, where the loop will run while `coin_flip != "Heads"`. 
+    
+- Only add 1 to `toss_num` **if** the value of `coin_flip` is "Heads"! You could do this with an *if statement*, or with `ifelse()`, for example. 
+
+- When the loop finishes running, `toss_num` will be equal to the coin flip on which "Heads" first occurs. 
+
+If you'd like, wrap this up within `replicate()` and try to simulate $E(Y)$ (it should be equal to 2). 
+
+```{r ex5, exercise = TRUE}
+
+```
+
+
+```{r, ex5-solution}
+# Simulation 1 time
+toss_num = 1
+coin_flip = "Moooooooooooose"
+
+while(coin_flip != "Heads"){
+  coin_flip = sample(c("Heads", "Tails"), 1)
+  
+  toss_num = ifelse(coin_flip == "Heads", toss_num, toss_num + 1)
+}
+toss_num
+
+# Simulation 10000 times
+coin_flip_sim = replicate(10000, {
+  toss_num = 1
+  coin_flip = "Moooooooooooose"
+
+  while(coin_flip != "Heads"){
+    coin_flip = sample(c("Heads", "Tails"), 1)
+  
+    toss_num = ifelse(coin_flip == "Heads", toss_num, toss_num + 1)
+}
+  toss_num
+})
+mean(coin_flip_sim)
+```
+
+## Level Up with {purrr}
+
+R is a **functional programming language**, which means that iterating with *functions* can often be a very powerful alternative to using *loops*. The `{purrr}` package from `tidyverse` provides a suite of functions that allow for fast, powerful iteration - plus it has a cool cat logo. 
+
+These functions, along with *implicit loops* such as `replicate()`, are generally faster than a for loop, though for loops can be simpler to construct in some instances!
+
+<center>
+
+![](https://swag.rstudio.com/uploads/1/3/1/3/131335021/s815253891256106552_p11_i2_w660.png){width=50%}
+
+</center>
+
+These functions, along with *implicit loops* such as `replicate()`, are generally faster than a for loop, though for loops can be simpler to construct in some instances!
+
+<center>
+
+![](https://media.giphy.com/media/ieaUdBJJC19uw/giphy.gif)
+
+</center>
+
+
+

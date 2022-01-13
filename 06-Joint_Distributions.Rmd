@@ -1,0 +1,494 @@
+---
+title: "MATH/STAT 338: Probability"
+subtitle: "Joint Distributions"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(mosaic)
+library(tidyverse)
+library(faux)
+
+theme_set(theme_minimal() +
+  theme(axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(size = 12, face = "bold"), 
+        axis.text.y = element_text(size = 12, face = "bold")))
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction
+
+In a previous lab, we used several of R's *built-in* functions to **sample** from named continuous probability distributions. For example, we could use any of the following to sample from a named probability distribution (some of which we haven't looked at in class):
+
+- `runif(n, min = ..., max = ...)`: Uniform distribution
+
+- `rnorm(n, mean = ..., sd = ...)`: Normal distribution
+
+- `rgamma(n, shape = ..., scale = ...)`: Gamma distribution
+
+- `rexp(n, rate = ...)`: Exponential distribution
+
+- `rbeta(n, shape1 = ..., shape2 = ...)`: Beta distribution
+
+- `rchisq(n, df = ...)`: Chi-Square distribution
+
+- `rt(n, df = ...)`: Student-t distribution
+
+- `rf(n, df1 = ..., df2 = ...)`: F distribution
+
+- `rweibull(n, shape = ..., scale = ...)`: Weibull distribution
+
+While we could also write functions for these (or for any non-named probability distribution), these built-in functions get the job done in many situations. 
+
+Unfortunately, most multivariate distributions do not have built-in R functions! Some, such as the **multivariate normal**, can be sampled from via additional packages. However by writing R functions for joint PDFs of *more than one* variable, we can use alternate techniques to sample from these multivariate distributions ([Speegle and Clair, 2020](https://mathstat.slu.edu/~speegle/_book_spring_2020/preface.html)). 
+
+## Univariate Distributions (review)
+
+Recall that we *could* write a function of a *single variable* in order to sample from a probability distribution. For example, the **standard normal** distribution, $Normal(0, 1)$ has PDF $$f(y)=\frac{1}{\sqrt{2\pi}}e^{-y^{2}/2},\quad -\infty<y<\infty$$
+
+We could write this as a function in R by doing the following:
+
+```{r prepare-function_1}
+s_norm_pdf = function(y){
+  (1/sqrt(2*pi))*exp(-y^2/2)
+}
+```
+
+```{r, s_norm_pdf, exercise = TRUE, exercise.eval = FALSE}
+s_norm_pdf = function(y){
+  (1/sqrt(2*pi))*exp(-y^2/2)
+}
+
+s_norm_pdf(0)
+```
+
+###
+
+Let's graph this over the interval $(-5, 5)$, just to make sure it is actually the bell-shaped curve we all know and love!
+
+```{r, s_norm_graph, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-function_1"}
+y_range = seq(-5, 5, by = 0.01)
+gf_line(s_norm_pdf(y_range) ~ y_range, size = 2) + 
+  labs(x = "y", y = "f(y)", 
+       title = "Normal(0, 1)")
+```
+
+###
+
+We can sample from this distribution using the following steps:
+
+```{r prepare-sample_1}
+s_norm_pdf = function(y){
+  (1/sqrt(2*pi))*exp(-y^2/2)
+}
+set.seed(338) # Use for reproducibility!
+y_values = runif(50000, -10, 10)
+y_probs = s_norm_pdf(y_values)
+```
+
+
+**Step 1** 
+
+Take a *large* random sample from the possible values of $Y$ (i.e., its **support**):
+```{r, y_values_1, exercise = TRUE, exercise.eval = FALSE}
+# We'll use -10 to +10, even though the N(0, 1) has infinite support
+set.seed(338) # Use for reproducibility!
+y_values = runif(50000, -10, 10)
+    
+head(y_values)
+```
+    
+###
+
+**Step 2**
+
+Calculate the *likelihood* of each $y$ value by applying our function, `f_y` to the vector `y_values`. Note that this **does not** give the *probability* of each $y$; rather, the *probability density* of each $y$. 
+```{r, y_probs_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-sample_1"}
+y_probs = s_norm_pdf(y_values)
+    
+head(y_probs)
+```
+
+###
+
+**Step 3**
+
+Sample around 10,000 values from `y_values` using `sample(...)`, with `prob` equal to the `y_probs` vector that we computed in Step 2. While `y_probs` are *not* probabilities, `sample()` will rescale these values so that they sum to 1. 
+
+- While the initial `y_values` sample ranged from -10 to 10, the `s_norm_pdf` will assign values of *y* further from 0 (the *mean*) with much smaller likelihoods, so they will be less likely to appear in `y_sample`:
+
+```{r, y_sample_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-sample_1"}
+y_sample = sample(y_values, size = 10000, replace = TRUE, prob = y_probs)
+    
+head(y_sample)
+```
+    
+We can apply a similar procedure to sampling from a multivariate distribution ([Speegle and Clair, 2020](https://mathstat.slu.edu/~speegle/_book_spring_2020/preface.html))!
+
+## Bivariate Distributions
+
+Now let's create functions for PDFs of *two* jointly distributed random variables! Note that we can easily extend this to cases with *more than two* random variables, but bivariate distributions are *much* easier to visualize. 
+
+In class we examined the joint probability density function $$f(x,y)=\frac{e^{-y}}{\sqrt{2\pi}}e^{-x^{2}/2},\quad -\infty<x<\infty,\ y>0.$$
+
+Let's store this PDF in R as a function:
+
+```{r, prepare-function_2}
+f_xy = function(x, y){
+  (exp(-y)/sqrt(2*pi))*exp(-x^2/2)
+}
+```
+
+```{r}
+f_xy = function(x, y){
+  (exp(-y)/sqrt(2*pi))*exp(-x^2/2)
+}
+```
+
+Nothing much changes from when we defined *univariate* functions! We still have the function **name**, the **inputs**, and the **body**. The only difference is that we now have *two* inputs, and the body includes both inputs. 
+
+Therefore when we use the function, we need to define input values for both `x` and `y`:
+
+```{r, f_xy, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-function_2"}
+f_xy(x = 2, y = 5)
+
+# Play around with different values of x and y!
+
+```
+
+### Sampling
+
+To sample from this joint distribution, we'll follow similar steps to the univariate case. 
+
+```{r, prepare-xy_sample}
+f_xy = function(x, y){
+  (exp(-y)/sqrt(2*pi))*exp(-x^2/2)
+}
+set.seed(338) # Reproducibility FTW
+x_values = runif(50000, -10, 10) # -infty < x < infty
+y_values = runif(50000, 0, 10) # y > 0
+xy_data = data.frame(x_values, y_values)
+xy_dens = f_xy(x_values, y_values)
+xy_data$xy_dens = xy_dens # Add density to xy_data
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+```
+
+```{r, prepare-xy_sample2}
+f_xy = function(x, y){
+  (exp(-y)/sqrt(2*pi))*exp(-x^2/2)
+}
+set.seed(338) # Reproducibility FTW
+x_values = runif(50000, -10, 10) # -infty < x < infty
+y_values = runif(50000, 0, 10) # y > 0
+xy_data = data.frame(x_values, y_values)
+xy_dens = f_xy(x_values, y_values)
+xy_data$xy_dens = xy_dens # Add density to xy_data
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+xy_data = xy_data[xy_index, ]
+```
+
+
+**Step 1** 
+
+Take a *large* random sample from the possible values of $X$ *and* $Y$ (i.e., its **support**). Save them in a **data frame**:
+```{r, xy_data_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample"}
+set.seed(338) # Reproducibility FTW
+x_values = runif(50000, -10, 10) # -infty < x < infty
+y_values = runif(50000, 0, 10) # y > 0
+xy_data = data.frame(x_values, y_values)
+    
+xy_data
+```
+
+###
+
+**Step 2**
+
+Calculate the *likelihood* of each $(x,y)$ pair by applying our function, `f_xy` to the vectors `x_values` and `y_values`.
+```{r, xy_dens_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample"}
+xy_dens = f_xy(x_values, y_values)
+xy_data$xy_dens = xy_dens # Add density to xy_data
+
+xy_data
+```
+ 
+###
+
+**Step 3**
+
+Sample by first extracting the indices of the `xy_data`, where indices for $(x,y)$ values with higher likelihoods are more likely to be selected:
+```{r, xy_sample_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample"}
+set.seed(338)
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+xy_data = xy_data[xy_index, ]
+
+xy_data
+```
+
+###
+
+We can visualize the **marginal distributions** by plotting the sampled `x_values` and `y_values` separately:
+
+```{r, xy_plot_x, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+gf_histogram( ~ x_values, data = xy_data)
+```
+
+```{r, xy_plot_y, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+gf_histogram( ~ y_values, data = xy_data)
+```
+
+###
+
+We can also *estimate* some probabilities:
+
+- $P(X < 1.5, Y < 1.5)$ (a **joint probability**):
+
+```{r, mean_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+mean(xy_data$x_values < 1.5 & xy_data$y_values < 1.5)
+```
+
+- $P(X < 1.5)$ (a **marginal probability**):
+
+```{r, mean_2, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+mean(xy_data$x_values < 1.5)
+```
+
+- $P(Y < 1.5)$ (another **marginal probability**):
+
+```{r, mean_3, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+mean(xy_data$y_values < 1.5)
+```
+
+###
+
+> 🚨**NOTE**🚨: When working with columns/variables in a dataset, we can use the `$` operator to access specific columns from the dataset by name.
+
+###
+
+From class, we saw that $X\sim Normal(0,1)$ and $Y\sim Exponential(1)$, and that these variables are **independent**. This means that $$P(X < 1.5, Y < 1.5)=P(X < 1.5)P(Y < 1.5),$$ and our estimated probabilities come *very close* to satisfying this!
+
+Because $X\sim Normal(0,1)$, we could also use `pnorm(...)` to find $P(X < 1.5)$ exactly:
+
+```{r, pnorm_1, exercise = TRUE, exercise.eval = TRUE}
+pnorm(1.5, mean = 0, sd = 1)
+```
+
+### Exercise 1
+
+In class we examined a joint probability distribution for $X$ and $Y$, where $$f(x,y)=x+y,\quad 0<x<1,\ 0<y<1.$$ By sampling from this joint probability distribution, *estimate* $P(X > 0.5)$. 
+
+```{r, prepare-ex1}
+f_xy = function(x, y){
+  x + y
+}
+
+x_values = runif(50000, 0, 1) # 0 < x < 1
+y_values = runif(50000, 0, 1) # 0 < y < 1
+xy_data = data.frame(x_values, y_values)
+
+xy_dens = f_xy(x_values, y_values)
+
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+```
+
+
+```{r, ex1, exercise = TRUE}
+
+```
+
+```{r, ex1-solution}
+f_xy = function(x, y){
+  x + y
+}
+
+x_values = runif(50000, 0, 1) # 0 < x < 1
+y_values = runif(50000, 0, 1) # 0 < y < 1
+xy_data = data.frame(x_values, y_values)
+
+xy_dens = f_xy(x_values, y_values)
+
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+xy_data = xy_data[xy_index, ]
+
+mean(xy_data$x_values > 0.5)
+```
+
+### Countour Plots
+
+When visualizing this joint distribution, we'll want to be able to see how $f(x,y)$ changes for different values of $x$ and $y$. In other words, we'll need some sort of visualization that allows us to view three different things at once. And no, I'm not talking about a 3D-graph. Just [don't](https://clauswilke.com/dataviz/no-3d.html). Don't use those.  
+
+<center>
+
+![](https://media.giphy.com/media/IRkqguqMTKUne/giphy.gif)
+
+</center>
+
+Instead we *could* use a **contour plot**, which is basically a multivariate *density plot*. 
+
+```{r, contour_1, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample2"}
+ggplot(data = xy_data, aes(x = x_values, y = y_values)) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", color = "white") + 
+  scale_fill_continuous(type = "viridis") +
+  labs(x = "x", y = "y", fill = "f(x,y)", 
+       title = "Joint Distribution of X and Y")
+```
+
+> 🚨**NOTE**🚨: Don't worry too much about the code for the contour plot. The only thing you'd really need to change are the objects in `data = ...`, `x = ...`, and `y = ...` from the first line. The code in the lines that follow just overlays the contour plot and formats/labels the plot.
+
+### Exercise 2
+
+Using your sampled data from *Exercise 1*, create a contour plot for the joint distribution of $X$ and $Y$. As a hint, your plot should look similar to the plot from [this slide](https://scotinastats.github.io/STAT338/05-Multivariate_Distributions/05-Multivariate_Distributions.html#16). 
+
+```{r, prepare-ex1_2}
+f_xy = function(x, y){
+  x + y
+}
+
+x_values = runif(50000, 0, 1) # 0 < x < 1
+y_values = runif(50000, 0, 1) # 0 < y < 1
+xy_data = data.frame(x_values, y_values)
+
+xy_dens = f_xy(x_values, y_values)
+
+xy_index = sample(1:50000, size = 10000, replace = TRUE, prob = xy_dens)
+xy_data = xy_data[xy_index, ]
+```
+
+
+```{r, ex2, exercise = TRUE, exercise.setup = "prepare-ex1_2"}
+
+```
+
+```{r, ex2-solution, exercise.setup = "prepare-ex1_2"}
+ggplot(data = xy_data, aes(x = x_values, y = y_values)) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", color = "white") + 
+  scale_fill_continuous(type = "viridis") +
+  labs(x = "x", y = "y", fill = "f(x,y)", 
+       title = "Joint Distribution of X and Y")
+```
+
+## Bivariate Normal Distribution
+
+The **multivariate normal distribution (MVN)** is a generalization of the *univariate* normal distribution that we've been using, where a *random vector* of random variables, $X_{1},X_{2},\dots,X_{k}$ are *jointly normal*. We'll look at a simplified version of the MVN where $X_{1}$ and $X_{2}$ are jointly normal: The **bivariate normal distribution**. 
+
+Like many of the named univariate probability distributions that we've studied this semester, the MVN has R functions that allow us to simulate from this distribution. Though, these are accessible via additional package installations, and there are quite a few packages that have their own version of MVN functions. We'll use the `{faux}` package, along with the `rnorm_multi()` function. 
+
+<center>
+
+![](https://media.giphy.com/media/UsGtfvAkM63AsaE0wd/giphy.gif)
+
+</center>
+
+###
+
+Here's our working example. Antarctic [Gentoo](https://en.wikipedia.org/wiki/Gentoo_penguin) penguins are adorable (see above photo), and have the following characteristics:
+
+- Their **flipper length** ($X_{1}$, in *millimeters*) follow a $Normal(217, 6.5)$ distribution. 
+
+- Their **body mass** ($X_{2}$, in *grams*) follows a $Normal(5000, 500)$ distribution. 
+
+*Furthermore*, suppose that the Gentoo penguins' flipper length and body mass are *strongly correlated*, with a correlation of $r = 0.7$. In other words, larger penguins (in mass) tend to have longer flippers. We can model this relationship with a *bivariate normal distribution*, which we'll simulate with `rnorm_multi()`:
+
+```{r, prepare-biv_norm}
+biv_norm_samp = rnorm_multi(
+  n = 10000, 
+  vars = 2,
+  mu = c(217, 5000), 
+  sd = c(6.5, 500), 
+  r = 0.7
+)
+```
+
+
+```{r, biv_norm_samp, warning = FALSE, message = FALSE, exercise = TRUE, exercise.eval = FALSE}
+library(faux) # Install this first!
+#?rnorm_multi
+
+biv_norm_samp = rnorm_multi(
+  n = 10000, 
+  vars = 2,
+  mu = c(217, 5000), 
+  sd = c(6.5, 500), 
+  r = 0.7
+)
+
+biv_norm_samp
+```
+
+###
+
+Here is the countour plot:
+
+```{r, biv_norm_plot, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-biv_norm"}
+ggplot(data = biv_norm_samp, aes(x = X1, y = X2)) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", color = "white") + 
+  scale_fill_continuous(type = "viridis") +
+  labs(x = "X1: Body Mass (g)", y = "X2: Flipper Length (mm)", fill = "f(x1,x2)", 
+       title = "Bivariate Normal Distribution")
+```
+
+### Exercise 3
+
+Suppose the Gentoo penguins' body mass and flipper length were *not* closely related, and had a correlation of $r = 0.05$. Recreate the simulation and compare the resulting contour plot to the one we just constructed. 
+
+```{r, ex3, exercise = TRUE}
+
+```
+
+```{r, ex3-solution}
+biv_norm_samp = rnorm_multi(
+  n = 10000, 
+  vars = 2,
+  mu = c(217, 5000), 
+  sd = c(6.5, 500), 
+  r = 0.05
+)
+
+ggplot(data = biv_norm_samp, aes(x = X1, y = X2)) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", color = "white") + 
+  scale_fill_continuous(type = "viridis") +
+  labs(x = "X1: Body Mass (g)", y = "X2: Flipper Length (mm)", fill = "f(x1,x2)", 
+       title = "Bivariate Normal Distribution")
+```
+
+
+## 3D Plots
+
+Okfine I'll show you how to make one. I'll *at least* make it interactive, so you don't need to try to visualize a static 3D plot on a 2D page. 
+
+```{r, plotly, warning = FALSE, message = FALSE, exercise = TRUE, exercise.eval = FALSE, exercise.setup = "prepare-xy_sample"}
+library(plotly) # Install this first!
+
+plot_ly(x = ~xy_data$x_values, y = ~xy_data$y_values, z = ~xy_data$xy_dens) %>% 
+  add_markers()
+```
+
+Just please, whatever you do, don't make a 3D pie chart...
+
+<center>
+
+![](https://media.giphy.com/media/14ut8PhnIwzros/giphy.gif)
+
+</center>
+
+### Exercise 4
+
+Make a 3D pie chart. 
+
+```{r, ex4, exercise = TRUE}
+
+```
+
+```{r, ex4-solution}
+# No.
+
+```
+
+
