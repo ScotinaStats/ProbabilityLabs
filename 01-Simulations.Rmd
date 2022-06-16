@@ -319,7 +319,7 @@ For the especially complicated simulation-based exercises that you'll encounter,
 
 ### Exercise 5
 
-In class we worked through the *Newton-Pepys Problem*. Try to simulate each of the three events using `replcate()`. The problem is stated below.
+In class we worked through the *Newton-Pepys Problem*. Try to simulate each of the three events using `replicate()`. The problem is stated below.
 
 Isaac Newton was consulted about the following problem by Samuel Pepys, who wanted the information for gambling purposes. Which of the following events has the highest probability?
 
